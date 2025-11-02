@@ -16,7 +16,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -173,82 +172,54 @@ fun HomeGridItem(
             containerColor = MaterialTheme.colorScheme.surface
         )
     ) {
-        Box(
+        Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 6.dp, vertical = 10.dp)
+                .padding(horizontal = 12.dp, vertical = 14.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            val density = LocalDensity.current
-            val iconSize = 36.dp  // Reduced icon size
-            // Use Material typography for proper text scaling support
+            val iconSize = 36.dp
             val titleStyle = MaterialTheme.typography.titleMedium
             val subtitleStyle = MaterialTheme.typography.bodySmall
-            
+
+            Icon(
+                imageVector = getIconForItem(item),
+                contentDescription = item.title,
+                modifier = Modifier.size(iconSize),
+                tint = getIconColorForItem(item)
+            )
+
             Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 4.dp),
+                modifier = Modifier.fillMaxWidth(),
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.SpaceBetween
+                verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                // Top section with icon
-                Column(
+                Text(
+                    text = item.title,
+                    style = titleStyle.copy(fontWeight = FontWeight.Bold),
+                    textAlign = TextAlign.Center,
+                    maxLines = 1,
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Spacer(modifier = Modifier.height(12.dp))
-                    
-                    // Icon - reduced size
-                    Icon(
-                        imageVector = getIconForItem(item),
-                        contentDescription = item.title,
-                        modifier = Modifier.size(iconSize),
-                        tint = getIconColorForItem(item)
-                    )
-                }
-                
-                // Bottom section with text - reserved space
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(bottom = 8.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Bottom
-                ) {
-                    // Title
-                    Text(
-                        text = item.title,
-                        style = titleStyle.copy(fontWeight = FontWeight.Bold),
-                        textAlign = TextAlign.Center,
-                        maxLines = 1,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 2.dp),
-                        overflow = TextOverflow.Ellipsis,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    
-                    Spacer(modifier = Modifier.height(4.dp))
-                    
-                    // Subtitle - ensure it's fully visible with text scaling support
-                    Text(
-                        text = item.subtitle.ifBlank { "0 B (0)" },
-                        style = subtitleStyle.copy(
-                            lineHeight = subtitleStyle.fontSize * 1.4f,
-                            letterSpacing = (-0.1).sp
-                        ),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        textAlign = TextAlign.Center,
-                        maxLines = 2,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 1.dp)
-                            .wrapContentHeight(),
-                        overflow = TextOverflow.Ellipsis,
-                        softWrap = true
-                    )
-                }
+                    overflow = TextOverflow.Ellipsis,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+
+                Text(
+                    text = item.subtitle.ifBlank { "0 B (0)" },
+                    style = subtitleStyle.copy(
+                        lineHeight = subtitleStyle.fontSize * 1.3f
+                    ),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center,
+                    maxLines = 2,
+                    modifier = Modifier.fillMaxWidth(),
+                    overflow = TextOverflow.Ellipsis,
+                    softWrap = true
+                )
             }
+
+            Spacer(modifier = Modifier.weight(1f, fill = true))
         }
     }
 }

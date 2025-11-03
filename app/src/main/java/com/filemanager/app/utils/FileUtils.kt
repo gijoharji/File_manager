@@ -1,5 +1,6 @@
 package com.filemanager.app.utils
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.os.Build
 import android.os.Environment
@@ -31,6 +32,20 @@ object FileUtils {
         File(Environment.getExternalStorageDirectory(), "Android/media/com.whatsapp")
     ).filter { it.exists() || it.parentFile?.exists() == true }
 
+    private val documentLocationRoots = listOf(
+        Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS),
+        Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
+        File(Environment.getExternalStorageDirectory(), "Documents"),
+        File(Environment.getExternalStorageDirectory(), "Document"),
+        File(Environment.getExternalStorageDirectory(), "My Documents"),
+        File(Environment.getExternalStorageDirectory(), "Download")
+    ).distinctBy { it.absolutePath }
+
+    private val documentLocationPrefixes: Set<String> = documentLocationRoots
+        .map { it.absolutePath.trimEnd(File.separatorChar) }
+        .filter { it.isNotBlank() }
+        .toSet()
+
     fun formatFileSize(bytes: Long): String {
         if (bytes < 1024) return "$bytes B"
         val exp = (kotlin.math.ln(bytes.toDouble()) / kotlin.math.ln(1024.0)).toInt()
@@ -54,6 +69,11 @@ object FileUtils {
 
         // Scan storage
         scanDirectoryRecursive(storageRoot, categoryMap)
+
+        // Some document locations (like Android/media) may be visible only via MediaStore APIs.
+        // Augment our scan with anything MediaStore exposes for the Documents bucket so the
+        // category reflects all accessible files for the user.
+        collectDocumentsFromMediaStore(context, categoryMap)
 
         // Build result
         categoryMap.mapValues { (category, sourceMap) ->
@@ -98,7 +118,7 @@ object FileUtils {
                 if (file.isHidden) continue
 
                 if (file.isFile) {
-                    val category = FileCategory.fromFile(file)
+                    val category = classifyFile(file)
                     if (category != null) {
                         val sourcePath = getSourcePath(file)
                         categoryMap[category]?.getOrPut(sourcePath) { mutableListOf() }?.add(
@@ -112,18 +132,121 @@ object FileUtils {
                         )
                     }
                 } else if (file.isDirectory) {
-                    // Skip some system directories
-                    if (file.name.startsWith(".") || 
-                        file.name == "Android" ||
-                        file.name == "Lost.Dir" ||
-                        file.name == "LOST.DIR") {
+                    // Skip hidden and system cache directories
+                    if (file.name.startsWith(".") ||
+                        file.name.equals("Lost.Dir", ignoreCase = true)) {
                         continue
                     }
+
+                    // Avoid scanning restricted Android directories while keeping Android/media
+                    val parentName = file.parentFile?.name?.lowercase(Locale.getDefault())
+                    val nameLower = file.name.lowercase(Locale.getDefault())
+                    val isAndroidChild = parentName == "android"
+                    if (isAndroidChild && (nameLower == "data" || nameLower == "obb")) {
+                        continue
+                    }
+
                     scanDirectoryRecursive(file, categoryMap)
                 }
             }
         } catch (e: Exception) {
             // Skip directories we can't access
+        }
+    }
+
+    @SuppressLint("Range")
+    private fun collectDocumentsFromMediaStore(
+        context: Context,
+        categoryMap: MutableMap<FileCategory, MutableMap<String, MutableList<FileItem>>>
+    ) {
+        val documentsBucket = categoryMap[FileCategory.DOCUMENTS] ?: return
+        val knownPaths = documentsBucket.values
+            .flatMapTo(mutableSetOf()) { source -> source.map(FileItem::path) }
+
+        val resolver = context.contentResolver
+        val projection = arrayOf(
+            MediaStore.Files.FileColumns.DISPLAY_NAME,
+            MediaStore.Files.FileColumns.SIZE,
+            MediaStore.Files.FileColumns.DATE_MODIFIED,
+            MediaStore.Files.FileColumns.DATA,
+            MediaStore.Files.FileColumns.RELATIVE_PATH
+        )
+        val selection = "${MediaStore.Files.FileColumns.MEDIA_TYPE} = ?"
+        val selectionArgs = arrayOf(MediaStore.Files.FileColumns.MEDIA_TYPE_NONE.toString())
+
+        val cursor = try {
+            resolver.query(
+                MediaStore.Files.getContentUri(MediaStore.VOLUME_EXTERNAL),
+                projection,
+                selection,
+                selectionArgs,
+                null
+            )
+        } catch (e: Exception) {
+            null
+        } ?: return
+
+        cursor.use { c ->
+            val storageRoot = Environment.getExternalStorageDirectory()
+            val relativeIndex = c.getColumnIndex(MediaStore.Files.FileColumns.RELATIVE_PATH)
+            val dataIndex = c.getColumnIndex(MediaStore.Files.FileColumns.DATA)
+            val nameIndex = c.getColumnIndex(MediaStore.Files.FileColumns.DISPLAY_NAME)
+            val sizeIndex = c.getColumnIndex(MediaStore.Files.FileColumns.SIZE)
+            val dateIndex = c.getColumnIndex(MediaStore.Files.FileColumns.DATE_MODIFIED)
+
+            while (c.moveToNext()) {
+                val displayName = if (nameIndex != -1) c.getString(nameIndex) else null
+                if (displayName.isNullOrBlank()) continue
+
+                val absolutePath = when {
+                    dataIndex != -1 -> c.getString(dataIndex)
+                    relativeIndex != -1 -> {
+                        val relative = c.getString(relativeIndex) ?: continue
+                        File(storageRoot, relative).resolve(displayName).absolutePath
+                    }
+                    else -> null
+                } ?: continue
+
+                val file = File(absolutePath)
+                val category = classifyFile(file) ?: continue
+                if (category != FileCategory.DOCUMENTS) continue
+
+                if (!knownPaths.add(absolutePath)) continue
+
+                val size = if (sizeIndex != -1) c.getLong(sizeIndex) else file.length()
+                val modified = if (dateIndex != -1) c.getLong(dateIndex) * 1000 else file.lastModified()
+                val sourcePath = getSourcePath(file)
+
+                documentsBucket.getOrPut(sourcePath) { mutableListOf() }.add(
+                    FileItem(
+                        path = file.absolutePath,
+                        name = file.name,
+                        size = size,
+                        dateModified = modified,
+                        category = FileCategory.DOCUMENTS
+                    )
+                )
+            }
+        }
+    }
+
+    private fun classifyFile(file: File): FileCategory? {
+        val category = FileCategory.fromFile(file)
+        if (category != null) {
+            return category
+        }
+
+        if (isDocumentLocation(file)) {
+            return FileCategory.DOCUMENTS
+        }
+
+        return null
+    }
+
+    private fun isDocumentLocation(file: File): Boolean {
+        val path = file.absolutePath
+        return documentLocationPrefixes.any { prefix ->
+            path == prefix || path.startsWith(prefix + File.separator)
         }
     }
     private fun getSourcePath(file: File): String {

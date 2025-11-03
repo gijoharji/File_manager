@@ -12,25 +12,64 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
 import androidx.activity.compose.BackHandler
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Apps
+import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Description
+import androidx.compose.material.icons.filled.DriveFileMove
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.FilterList
+import androidx.compose.material.icons.filled.Folder
+import androidx.compose.material.icons.filled.FolderZip
+import androidx.compose.material.icons.filled.Image
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.MusicNote
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.SelectAll
+import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.VideoLibrary
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.BottomAppBar
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
@@ -39,20 +78,22 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.google.accompanist.swiperefresh.SwipeRefresh
-import com.google.accompanist.swiperefresh.rememberSwipeRefreshState
+import coil.ImageLoader
 import coil.compose.rememberAsyncImagePainter
+import coil.decode.VideoFrameDecoder
 import coil.request.ImageRequest
 import coil.request.videoFrameMillis
 import com.filemanager.app.MainActivity
 import com.filemanager.app.data.FileCategory
 import com.filemanager.app.data.FileItem
+import com.filemanager.app.data.SourceFolderData
 import com.filemanager.app.ui.viewmodel.FileManagerViewModel
 import com.filemanager.app.utils.FileUtils
+import com.google.accompanist.swiperefresh.SwipeRefresh
+import com.google.accompanist.swiperefresh.rememberSwipeRefreshState
 import java.io.File
 import java.util.Locale
 
@@ -71,6 +112,16 @@ fun CategoryDetailScreen(
     val isSelectionMode by viewModel.isSelectionMode.collectAsStateWithLifecycle()
     val selectedFiles by viewModel.selectedFiles.collectAsStateWithLifecycle()
     val context = LocalContext.current
+    val thumbnailImageLoader = remember(context) {
+        ImageLoader.Builder(context)
+            .components {
+                add(VideoFrameDecoder.Factory())
+            }
+            .build()
+    }
+    DisposableEffect(thumbnailImageLoader) {
+        onDispose { thumbnailImageLoader.shutdown() }
+    }
 
     val categoryData = categories[category]
     val sources = categoryData?.sources ?: emptyMap()
@@ -319,6 +370,7 @@ fun CategoryDetailScreen(
                             fileItem = fileItem,
                             category = fileItem.category ?: category,
                             isSelected = selectedFiles.contains(fileItem.path),
+                            imageLoader = thumbnailImageLoader,
                             onLongPress = {
                                 viewModel.toggleFileSelection(fileItem.path)
                             },
@@ -351,6 +403,7 @@ fun CategoryDetailScreen(
                             sourceData = sourceData,
                             category = category,
                             isSelected = selectedFolders.contains(path),
+                            imageLoader = thumbnailImageLoader,
                             onLongPress = {
                                 if (!isSelectionMode) {
                                     viewModel.clearSelection()
@@ -639,6 +692,7 @@ fun FileTile(
     fileItem: FileItem,
     category: FileCategory,
     isSelected: Boolean,
+    imageLoader: ImageLoader,
     onLongPress: () -> Unit,
     onClick: () -> Unit
 ) {
@@ -675,15 +729,11 @@ fun FileTile(
                 if (category == FileCategory.IMAGES || category == FileCategory.VIDEOS) {
                     val context = LocalContext.current
                     val painter = rememberAsyncImagePainter(
-                        ImageRequest.Builder(context)
+                        model = ImageRequest.Builder(context)
                             .data(File(fileItem.path))
-                            .apply {
-                                if (category == FileCategory.VIDEOS) {
-                                    videoFrameMillis(0)
-                                }
-                            }
                             .crossfade(true)
-                            .build()
+                            .build(),
+                        imageLoader = imageLoader
                     )
                     Image(
                         painter = painter,
@@ -781,9 +831,10 @@ fun RenameFileDialog(
 
 @Composable
 fun FolderTile(
-    sourceData: com.filemanager.app.data.SourceFolderData,
+    sourceData: SourceFolderData,
     category: FileCategory,
     isSelected: Boolean,
+    imageLoader: ImageLoader,
     onLongPress: () -> Unit,
     onClick: () -> Unit
 ) {
@@ -824,15 +875,11 @@ fun FolderTile(
                 if (previewFile != null && (category == FileCategory.IMAGES || category == FileCategory.VIDEOS)) {
                     val context = LocalContext.current
                     val painter = rememberAsyncImagePainter(
-                        ImageRequest.Builder(context)
+                        model = ImageRequest.Builder(context)
                             .data(File(previewFile.path))
-                            .apply {
-                                if (category == FileCategory.VIDEOS) {
-                                    videoFrameMillis(0)
-                                }
-                            }
                             .crossfade(true)
-                            .build()
+                            .build(),
+                        imageLoader = imageLoader
                     )
                     Image(
                         painter = painter,

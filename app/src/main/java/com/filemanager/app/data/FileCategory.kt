@@ -1,6 +1,8 @@
 package com.filemanager.app.data
 
+import android.webkit.MimeTypeMap
 import java.io.File
+import java.util.Locale
 
 enum class FileCategory(val displayName: String, val extensions: Set<String>) {
     IMAGES(
@@ -44,7 +46,40 @@ enum class FileCategory(val displayName: String, val extensions: Set<String>) {
             "ods",
             "odp",
             "csv",
-            "xps"
+            "tsv",
+            "xps",
+            "xml",
+            "json",
+            "html",
+            "htm",
+            "log",
+            "cfg",
+            "conf",
+            "ini",
+            "properties",
+            "prop",
+            "yaml",
+            "yml",
+            "md",
+            "markdown",
+            "tex",
+            "epub",
+            "mobi",
+            "azw",
+            "fb2",
+            "chm",
+            "wps",
+            "wpt",
+            "ps",
+            "rtx",
+            "odg",
+            "numbers",
+            "pages",
+            "key",
+            "sqlite",
+            "db",
+            "db3",
+            "sql"
         )
     ),
     APKS(
@@ -57,11 +92,70 @@ enum class FileCategory(val displayName: String, val extensions: Set<String>) {
     );
 
     fun matches(file: File): Boolean {
-        val extension = file.extension.lowercase()
-        return extensions.contains(extension)
+        val extension = file.extension.lowercase(Locale.getDefault())
+        if (extensions.contains(extension)) {
+            return true
+        }
+
+        if (this == DOCUMENTS) {
+            if (extension in documentAdditionalExtensions) {
+                return true
+            }
+
+            if (extension.isNotEmpty()) {
+                val mimeType = MimeTypeMap.getSingleton()
+                    .getMimeTypeFromExtension(extension)
+                    ?.lowercase(Locale.getDefault())
+
+                if (mimeType != null) {
+                    if (mimeType.startsWith("text/")) {
+                        return true
+                    }
+
+                    if (mimeType.startsWith("application/") &&
+                        mimeType !in documentMimeExclusions
+                    ) {
+                        return true
+                    }
+                }
+            }
+        }
+
+        return false
     }
 
     companion object {
+        private val documentAdditionalExtensions = setOf(
+            "bak",
+            "backup",
+            "lst",
+            "nfo",
+            "info",
+            "cfg",
+            "config",
+            "bat",
+            "sh",
+            "py",
+            "java",
+            "kt",
+            "c",
+            "cpp",
+            "h",
+            "hpp",
+            "gradle"
+        )
+
+        private val documentMimeExclusions = setOf(
+            "application/zip",
+            "application/x-7z-compressed",
+            "application/x-rar-compressed",
+            "application/x-tar",
+            "application/gzip",
+            "application/x-bzip2",
+            "application/x-xz",
+            "application/vnd.android.package-archive"
+        )
+
         fun fromFile(file: File): FileCategory? {
             return values().find { it.matches(file) }
         }

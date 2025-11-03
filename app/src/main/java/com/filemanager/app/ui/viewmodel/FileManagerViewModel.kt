@@ -48,6 +48,9 @@ class FileManagerViewModel(application: Application) : AndroidViewModel(applicat
         scanFiles()
     }
 
+    init {
+        scanFiles()
+    }
     fun scanFiles() {
         viewModelScope.launch {
             _isLoading.value = true
@@ -122,6 +125,497 @@ class FileManagerViewModel(application: Application) : AndroidViewModel(applicat
         }
 
         loadStorageEntries(newPath)
+    }
+
+    private fun loadStorageEntries(path: String) {
+        viewModelScope.launch {
+            _isStorageLoading.value = true
+            try {
+                val entries = withContext(Dispatchers.IO) {
+                    FileUtils.listDirectoryEntries(path)
+                }
+                _storageEntries.value = entries
+            } catch (e: Exception) {
+                _storageEntries.value = emptyList()
+            } finally {
+                _isStorageLoading.value = false
+            }
+        }
+    }
+
+    fun openStorage(path: String) {
+        clearSelection()
+        _selectedCategory.value = null
+        setStorageContext(listOf(path))
+    }
+
+    fun enterStorageDirectory(path: String) {
+        val currentStack = _storageNavigationStack.value
+        if (currentStack.isNotEmpty() && currentStack.last() == path) {
+            return
+        }
+
+        setStorageContext(currentStack + path)
+    }
+
+    fun handleStorageBack(): Boolean {
+        val stack = _storageNavigationStack.value
+        return when {
+            stack.size > 1 -> {
+                setStorageContext(stack.dropLast(1))
+                true
+            }
+
+            stack.isNotEmpty() -> {
+                dismissStorageBrowser()
+                true
+            }
+
+            else -> false
+        }
+    }
+
+    fun dismissStorageBrowser() {
+        clearSelection()
+        setStorageContext(emptyList())
+    }
+
+    private fun setStorageContext(stack: List<String>) {
+        _storageNavigationStack.value = stack
+
+        val newPath = stack.lastOrNull()
+        _currentStoragePath.value = newPath
+
+        if (newPath == null) {
+            _storageEntries.value = emptyList()
+            _isStorageLoading.value = false
+            return
+        }
+
+        loadStorageEntries(newPath)
+    }
+
+    private fun loadStorageEntries(path: String) {
+        viewModelScope.launch {
+            _isStorageLoading.value = true
+            try {
+                val entries = withContext(Dispatchers.IO) {
+                    FileUtils.listDirectoryEntries(path)
+                }
+                _storageEntries.value = entries
+            } catch (e: Exception) {
+                _storageEntries.value = emptyList()
+            } finally {
+                _isStorageLoading.value = false
+            }
+        }
+    }
+
+    fun openStorage(path: String) {
+        clearSelection()
+        _selectedCategory.value = null
+        setStorageContext(listOf(path))
+    }
+
+    fun navigateIntoStorage(path: String) {
+        val currentStack = _storageNavigationStack.value
+        if (currentStack.isNotEmpty() && currentStack.last() == path) {
+            return
+        }
+
+        setStorageContext(currentStack + path)
+    }
+
+    fun handleStorageBack(): Boolean {
+        val stack = _storageNavigationStack.value
+        return when {
+            stack.size > 1 -> {
+                setStorageContext(stack.dropLast(1))
+                true
+            }
+
+            stack.isNotEmpty() -> {
+                dismissStorageBrowser()
+                true
+            }
+
+            else -> false
+        }
+    }
+
+    fun dismissStorageBrowser() {
+        clearSelection()
+        setStorageContext(emptyList())
+    }
+
+    private fun setStorageContext(stack: List<String>) {
+        _storageNavigationStack.value = stack
+
+        val newPath = stack.lastOrNull()
+        _currentStoragePath.value = newPath
+
+        if (newPath == null) {
+            _storageEntries.value = emptyList()
+            _isStorageLoading.value = false
+            return
+        }
+
+        loadStorageEntries(newPath)
+    }
+
+    private fun loadStorageEntries(path: String) {
+        viewModelScope.launch {
+            _isStorageLoading.value = true
+            try {
+                val entries = withContext(Dispatchers.IO) {
+                    FileUtils.listDirectoryEntries(path)
+                }
+                _storageEntries.value = entries
+            } catch (e: Exception) {
+                _storageEntries.value = emptyList()
+            } finally {
+                _isStorageLoading.value = false
+            }
+        }
+    }
+
+    fun openStorage(path: String) {
+        clearSelection()
+        _selectedCategory.value = null
+        setStorageContext(listOf(path))
+    }
+
+    fun navigateIntoStorage(path: String) {
+        val currentStack = _storageNavigationStack.value
+        if (currentStack.isNotEmpty() && currentStack.last() == path) {
+            return
+        }
+
+        setStorageContext(currentStack + path)
+    }
+
+    fun navigateUpStorage(): Boolean {
+        val stack = _storageNavigationStack.value
+        if (stack.size <= 1) {
+            return false
+        }
+
+        setStorageContext(stack.dropLast(1))
+        return true
+    }
+
+    fun closeStorageBrowser() {
+        clearSelection()
+        setStorageContext(emptyList())
+    }
+
+    private fun setStorageContext(stack: List<String>) {
+        _storageNavigationStack.value = stack
+
+        val newPath = stack.lastOrNull()
+        _currentStoragePath.value = newPath
+
+        if (newPath == null) {
+            _storageEntries.value = emptyList()
+            _isStorageLoading.value = false
+            return
+        }
+
+        loadStorageEntries(newPath)
+    }
+
+    private fun loadStorageEntries(path: String) {
+        viewModelScope.launch {
+            _isStorageLoading.value = true
+            try {
+                val entries = withContext(Dispatchers.IO) {
+                    FileUtils.listDirectoryEntries(path)
+                }
+                _storageEntries.value = entries
+            } catch (e: Exception) {
+                _storageEntries.value = emptyList()
+            } finally {
+                _isStorageLoading.value = false
+            }
+        }
+    }
+
+    fun openStorage(path: String) {
+        clearSelection()
+        _selectedCategory.value = null
+        setStorageContext(listOf(path))
+    }
+
+    fun navigateIntoStorage(path: String) {
+        val currentStack = _storageNavigationStack.value
+        if (currentStack.isNotEmpty() && currentStack.last() == path) {
+            return
+        }
+
+        setStorageContext(currentStack + path)
+    }
+
+    fun popStorageLevel(): Boolean {
+        val stack = _storageNavigationStack.value
+        if (stack.size <= 1) {
+            return false
+        }
+
+        setStorageContext(stack.dropLast(1))
+        return true
+    }
+
+    fun closeStorageBrowser() {
+        clearSelection()
+        setStorageContext(emptyList())
+    }
+
+    private fun setStorageContext(stack: List<String>) {
+        _storageNavigationStack.value = stack
+
+        val newPath = stack.lastOrNull()
+        _currentStoragePath.value = newPath
+
+        if (newPath == null) {
+            _storageEntries.value = emptyList()
+            _isStorageLoading.value = false
+            return
+        }
+
+        loadStorageEntries(newPath)
+    }
+
+    private fun loadStorageEntries(path: String) {
+        viewModelScope.launch {
+            _isStorageLoading.value = true
+            try {
+                val entries = withContext(Dispatchers.IO) {
+                    FileUtils.listDirectoryEntries(path)
+                }
+                _storageEntries.value = entries
+            } catch (e: Exception) {
+                _storageEntries.value = emptyList()
+            } finally {
+                _isStorageLoading.value = false
+            }
+        }
+    }
+
+    fun openStorage(path: String) {
+        clearSelection()
+        _selectedCategory.value = null
+        setStorageContext(listOf(path))
+    }
+
+    fun navigateIntoStorage(path: String) {
+        val currentStack = _storageNavigationStack.value
+        if (currentStack.isNotEmpty() && currentStack.last() == path) {
+            return
+        }
+
+        setStorageContext(currentStack + path)
+    }
+
+    fun navigateUpStorage(): Boolean {
+        val stack = _storageNavigationStack.value
+        if (stack.size <= 1) {
+            return false
+        }
+
+        setStorageContext(stack.dropLast(1))
+        return true
+    }
+
+    fun closeStorageBrowser() {
+        clearSelection()
+        setStorageContext(emptyList())
+    }
+
+    private fun setStorageContext(stack: List<String>) {
+        _storageNavigationStack.value = stack
+
+        val newPath = stack.lastOrNull()
+        _currentStoragePath.value = newPath
+
+        if (newPath == null) {
+            _storageEntries.value = emptyList()
+            _isStorageLoading.value = false
+            return
+        }
+
+        loadStorageEntries(newPath)
+    }
+
+    private fun loadStorageEntries(path: String) {
+        viewModelScope.launch {
+            _isStorageLoading.value = true
+            try {
+                val entries = withContext(Dispatchers.IO) {
+                    FileUtils.listDirectoryEntries(path)
+                }
+                _storageEntries.value = entries
+            } catch (e: Exception) {
+                _storageEntries.value = emptyList()
+            } finally {
+                _isStorageLoading.value = false
+            }
+        }
+    }
+
+    fun openStorage(path: String) {
+        _selectedCategory.value = null
+        _storageNavigationStack.value = listOf(path)
+        _currentStoragePath.value = path
+        clearSelection()
+        loadStorageEntries(path)
+    }
+
+    /**
+     * Backwards compatible alias for callers that previously referenced a
+     * generic navigateStorage entry point. This avoids unresolved references
+     * while deferring to the newer navigation helper that updates the stack.
+     */
+    fun navigateStorage(path: String) {
+        navigateIntoStorage(path)
+    }
+
+    fun navigateIntoStorage(path: String) {
+        val stack = _storageNavigationStack.value + path
+        _storageNavigationStack.value = stack
+        _currentStoragePath.value = path
+        loadStorageEntries(path)
+    }
+
+    fun navigateUpStorage(): Boolean {
+        val stack = _storageNavigationStack.value
+        if (stack.size > 1) {
+            val newStack = stack.dropLast(1)
+            val newPath = newStack.last()
+            _storageNavigationStack.value = newStack
+            _currentStoragePath.value = newPath
+            loadStorageEntries(newPath)
+            return true
+        }
+        return false
+    }
+
+    /**
+     * Matches older call sites that expected a navigate-up style helper.
+     * Returns whether the navigation event was consumed.
+     */
+    fun navigateStorageUp(): Boolean = navigateUpStorage()
+
+    fun closeStorageBrowser() {
+        _storageNavigationStack.value = emptyList()
+        _currentStoragePath.value = null
+        _storageEntries.value = emptyList()
+        _isStorageLoading.value = false
+    }
+
+    fun closeStorage() {
+        closeStorageBrowser()
+    }
+
+    private fun loadStorageEntries(path: String) {
+        viewModelScope.launch {
+            _isStorageLoading.value = true
+            try {
+                val entries = withContext(Dispatchers.IO) {
+                    FileUtils.listDirectoryEntries(path)
+                }
+                _storageEntries.value = entries
+            } catch (e: Exception) {
+                _storageEntries.value = emptyList()
+            } finally {
+                _isStorageLoading.value = false
+            }
+        }
+    }
+
+    fun openStorage(path: String) {
+        _selectedCategory.value = null
+        _storageNavigationStack.value = listOf(path)
+        _currentStoragePath.value = path
+        clearSelection()
+        loadStorageEntries(path)
+    }
+
+    fun navigateIntoStorage(path: String) {
+        val stack = _storageNavigationStack.value + path
+        _storageNavigationStack.value = stack
+        _currentStoragePath.value = path
+        loadStorageEntries(path)
+    }
+
+    fun navigateUpStorage(): Boolean {
+        val stack = _storageNavigationStack.value
+        if (stack.size > 1) {
+            val newStack = stack.dropLast(1)
+            val newPath = newStack.last()
+            _storageNavigationStack.value = newStack
+            _currentStoragePath.value = newPath
+            loadStorageEntries(newPath)
+            return true
+        }
+        return false
+    }
+
+    fun closeStorageBrowser() {
+        _storageNavigationStack.value = emptyList()
+        _currentStoragePath.value = null
+        _storageEntries.value = emptyList()
+        _isStorageLoading.value = false
+    }
+
+    private fun loadStorageEntries(path: String) {
+        viewModelScope.launch {
+            _isStorageLoading.value = true
+            try {
+                val entries = withContext(Dispatchers.IO) {
+                    FileUtils.listDirectoryEntries(path)
+                }
+                _storageEntries.value = entries
+            } catch (e: Exception) {
+                _storageEntries.value = emptyList()
+            } finally {
+                _isStorageLoading.value = false
+            }
+        }
+    }
+
+    fun openStorage(path: String) {
+        _selectedCategory.value = null
+        _storageNavigationStack.value = listOf(path)
+        _currentStoragePath.value = path
+        clearSelection()
+        loadStorageEntries(path)
+    }
+
+    fun navigateIntoStorage(path: String) {
+        val stack = _storageNavigationStack.value + path
+        _storageNavigationStack.value = stack
+        _currentStoragePath.value = path
+        loadStorageEntries(path)
+    }
+
+    fun navigateUpStorage(): Boolean {
+        val stack = _storageNavigationStack.value
+        if (stack.size > 1) {
+            val newStack = stack.dropLast(1)
+            val newPath = newStack.last()
+            _storageNavigationStack.value = newStack
+            _currentStoragePath.value = newPath
+            loadStorageEntries(newPath)
+            return true
+        }
+        return false
+    }
+
+    fun closeStorageBrowser() {
+        _storageNavigationStack.value = emptyList()
+        _currentStoragePath.value = null
+        _storageEntries.value = emptyList()
+        _isStorageLoading.value = false
     }
 
     private fun loadStorageEntries(path: String) {

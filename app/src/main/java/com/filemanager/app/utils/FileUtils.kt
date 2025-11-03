@@ -264,7 +264,7 @@ object FileUtils {
             try {
                 val sourceFile = File(fileItem.path)
                 val destFile = File(destination, fileItem.name)
-                
+
                 // Handle duplicates
                 var finalDest = destFile
                 var counter = 1
@@ -274,11 +274,41 @@ object FileUtils {
                     finalDest = File(destination, "$nameWithoutExt ($counter).$ext")
                     counter++
                 }
-                
+
                 sourceFile.renameTo(finalDest)
             } catch (e: Exception) {
                 false
             }
+        }
+    }
+
+    fun renameFile(file: FileItem, newName: String): Boolean {
+        return try {
+            val sourceFile = File(file.path)
+            val parentDirectory = sourceFile.parentFile ?: return false
+
+            val trimmedName = newName.trim()
+            if (trimmedName.isEmpty()) return false
+
+            val desiredName = if (trimmedName.contains('.')) {
+                trimmedName
+            } else {
+                val originalExtension = file.name.substringAfterLast('.', "")
+                if (originalExtension.isNotEmpty()) {
+                    "$trimmedName.$originalExtension"
+                } else {
+                    trimmedName
+                }
+            }
+
+            val targetFile = File(parentDirectory, desiredName)
+            if (targetFile.exists() && targetFile.absolutePath != sourceFile.absolutePath) {
+                return false
+            }
+
+            sourceFile.renameTo(targetFile)
+        } catch (e: Exception) {
+            false
         }
     }
 }

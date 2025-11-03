@@ -106,7 +106,7 @@ fun MainScreen(viewModel: FileManagerViewModel) {
                 HomeGridScreen(
                     categories = categories,
                     onCategoryClick = { viewModel.selectCategory(it) },
-                    onStorageClick = { path -> viewModel.openStorageRoot(path) },
+                    onStorageClick = { path -> viewModel.openStorage(path) },
                     modifier = Modifier.padding(padding)
                 )
             }

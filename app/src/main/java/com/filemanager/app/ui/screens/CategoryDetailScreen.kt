@@ -85,6 +85,7 @@ import coil.ImageLoader
 import coil.compose.rememberAsyncImagePainter
 import coil.decode.VideoFrameDecoder
 import coil.request.ImageRequest
+import coil.request.videoFrameMillis
 import com.filemanager.app.MainActivity
 import com.filemanager.app.data.FileCategory
 import com.filemanager.app.data.FileItem

@@ -18,6 +18,7 @@ INJECTED from C:\Users\GYVX\Documents\GitHub\File_manager\app\src\main\AndroidMa
 MERGED from [androidx.databinding:viewbinding:8.13.0] C:\Users\GYVX\.gradle\caches\8.13\transforms\32cb07097409c3176ec05552bea16598\transformed\jetified-viewbinding-8.13.0\AndroidManifest.xml:2:1-7:12
 MERGED from [com.google.android.material:material:1.11.0] C:\Users\GYVX\.gradle\caches\8.13\transforms\86d4b1ee2a59ed9194caa8acd4e43b37\transformed\material-1.11.0\AndroidManifest.xml:17:1-24:12
 MERGED from [androidx.constraintlayout:constraintlayout:2.1.4] C:\Users\GYVX\.gradle\caches\8.13\transforms\3cf9487d27098d33281751f111952897\transformed\constraintlayout-2.1.4\AndroidManifest.xml:2:1-11:12
+MERGED from [io.coil-kt:coil-video:2.5.0] C:\Users\GYVX\.gradle\caches\8.13\transforms\fe15e353caecb9d5200b6d547d9568ae\transformed\jetified-coil-video-2.5.0\AndroidManifest.xml:2:1-7:12
 MERGED from [io.coil-kt:coil-compose:2.5.0] C:\Users\GYVX\.gradle\caches\8.13\transforms\8ad471a9dce9ce1c54d197e7f53802c1\transformed\jetified-coil-compose-2.5.0\AndroidManifest.xml:2:1-7:12
 MERGED from [io.coil-kt:coil-compose-base:2.5.0] C:\Users\GYVX\.gradle\caches\8.13\transforms\b2a9f93c54c45d73135a6aef8b41e440\transformed\jetified-coil-compose-base-2.5.0\AndroidManifest.xml:2:1-7:12
 MERGED from [io.coil-kt:coil:2.5.0] C:\Users\GYVX\.gradle\caches\8.13\transforms\d482e1ee0ce98856083d8c2f759568f0\transformed\jetified-coil-2.5.0\AndroidManifest.xml:2:1-7:12
@@ -96,9 +97,9 @@ MERGED from [androidx.arch.core:core-runtime:2.2.0] C:\Users\GYVX\.gradle\caches
 MERGED from [androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\GYVX\.gradle\caches\8.13\transforms\0ba0857fba1b33edc8a474dadaaf957a\transformed\jetified-profileinstaller-1.3.1\AndroidManifest.xml:17:1-55:12
 MERGED from [androidx.startup:startup-runtime:1.1.1] C:\Users\GYVX\.gradle\caches\8.13\transforms\fd09de2accc91216c7513eeb256ac925\transformed\jetified-startup-runtime-1.1.1\AndroidManifest.xml:17:1-33:12
 MERGED from [androidx.tracing:tracing:1.0.0] C:\Users\GYVX\.gradle\caches\8.13\transforms\30fda4d44957dab7f9452e6e418bc968\transformed\jetified-tracing-1.0.0\AndroidManifest.xml:17:1-24:12
+MERGED from [androidx.exifinterface:exifinterface:1.3.6] C:\Users\GYVX\.gradle\caches\8.13\transforms\ecf4427025fe66308dd1b430fbf6e6d5\transformed\exifinterface-1.3.6\AndroidManifest.xml:17:1-24:12
 MERGED from [androidx.localbroadcastmanager:localbroadcastmanager:1.0.0] C:\Users\GYVX\.gradle\caches\8.13\transforms\2300464d4e3ad227616f38ab4399a469\transformed\localbroadcastmanager-1.0.0\AndroidManifest.xml:17:1-22:12
 MERGED from [androidx.print:print:1.0.0] C:\Users\GYVX\.gradle\caches\8.13\transforms\0d87334eb9515c683a3cb8261fcaabab\transformed\print-1.0.0\AndroidManifest.xml:17:1-22:12
-MERGED from [androidx.exifinterface:exifinterface:1.3.6] C:\Users\GYVX\.gradle\caches\8.13\transforms\ecf4427025fe66308dd1b430fbf6e6d5\transformed\exifinterface-1.3.6\AndroidManifest.xml:17:1-24:12
 	package
 		INJECTED from C:\Users\GYVX\Documents\GitHub\File_manager\app\src\main\AndroidManifest.xml
 	android:versionName
@@ -226,6 +227,8 @@ MERGED from [com.google.android.material:material:1.11.0] C:\Users\GYVX\.gradle\
 MERGED from [com.google.android.material:material:1.11.0] C:\Users\GYVX\.gradle\caches\8.13\transforms\86d4b1ee2a59ed9194caa8acd4e43b37\transformed\material-1.11.0\AndroidManifest.xml:20:5-44
 MERGED from [androidx.constraintlayout:constraintlayout:2.1.4] C:\Users\GYVX\.gradle\caches\8.13\transforms\3cf9487d27098d33281751f111952897\transformed\constraintlayout-2.1.4\AndroidManifest.xml:5:5-7:41
 MERGED from [androidx.constraintlayout:constraintlayout:2.1.4] C:\Users\GYVX\.gradle\caches\8.13\transforms\3cf9487d27098d33281751f111952897\transformed\constraintlayout-2.1.4\AndroidManifest.xml:5:5-7:41
+MERGED from [io.coil-kt:coil-video:2.5.0] C:\Users\GYVX\.gradle\caches\8.13\transforms\fe15e353caecb9d5200b6d547d9568ae\transformed\jetified-coil-video-2.5.0\AndroidManifest.xml:5:5-44
+MERGED from [io.coil-kt:coil-video:2.5.0] C:\Users\GYVX\.gradle\caches\8.13\transforms\fe15e353caecb9d5200b6d547d9568ae\transformed\jetified-coil-video-2.5.0\AndroidManifest.xml:5:5-44
 MERGED from [io.coil-kt:coil-compose:2.5.0] C:\Users\GYVX\.gradle\caches\8.13\transforms\8ad471a9dce9ce1c54d197e7f53802c1\transformed\jetified-coil-compose-2.5.0\AndroidManifest.xml:5:5-44
 MERGED from [io.coil-kt:coil-compose:2.5.0] C:\Users\GYVX\.gradle\caches\8.13\transforms\8ad471a9dce9ce1c54d197e7f53802c1\transformed\jetified-coil-compose-2.5.0\AndroidManifest.xml:5:5-44
 MERGED from [io.coil-kt:coil-compose-base:2.5.0] C:\Users\GYVX\.gradle\caches\8.13\transforms\b2a9f93c54c45d73135a6aef8b41e440\transformed\jetified-coil-compose-base-2.5.0\AndroidManifest.xml:5:5-44
@@ -382,12 +385,12 @@ MERGED from [androidx.startup:startup-runtime:1.1.1] C:\Users\GYVX\.gradle\cache
 MERGED from [androidx.startup:startup-runtime:1.1.1] C:\Users\GYVX\.gradle\caches\8.13\transforms\fd09de2accc91216c7513eeb256ac925\transformed\jetified-startup-runtime-1.1.1\AndroidManifest.xml:21:5-23:41
 MERGED from [androidx.tracing:tracing:1.0.0] C:\Users\GYVX\.gradle\caches\8.13\transforms\30fda4d44957dab7f9452e6e418bc968\transformed\jetified-tracing-1.0.0\AndroidManifest.xml:20:5-22:41
 MERGED from [androidx.tracing:tracing:1.0.0] C:\Users\GYVX\.gradle\caches\8.13\transforms\30fda4d44957dab7f9452e6e418bc968\transformed\jetified-tracing-1.0.0\AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.exifinterface:exifinterface:1.3.6] C:\Users\GYVX\.gradle\caches\8.13\transforms\ecf4427025fe66308dd1b430fbf6e6d5\transformed\exifinterface-1.3.6\AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.exifinterface:exifinterface:1.3.6] C:\Users\GYVX\.gradle\caches\8.13\transforms\ecf4427025fe66308dd1b430fbf6e6d5\transformed\exifinterface-1.3.6\AndroidManifest.xml:20:5-22:41
 MERGED from [androidx.localbroadcastmanager:localbroadcastmanager:1.0.0] C:\Users\GYVX\.gradle\caches\8.13\transforms\2300464d4e3ad227616f38ab4399a469\transformed\localbroadcastmanager-1.0.0\AndroidManifest.xml:20:5-44
 MERGED from [androidx.localbroadcastmanager:localbroadcastmanager:1.0.0] C:\Users\GYVX\.gradle\caches\8.13\transforms\2300464d4e3ad227616f38ab4399a469\transformed\localbroadcastmanager-1.0.0\AndroidManifest.xml:20:5-44
 MERGED from [androidx.print:print:1.0.0] C:\Users\GYVX\.gradle\caches\8.13\transforms\0d87334eb9515c683a3cb8261fcaabab\transformed\print-1.0.0\AndroidManifest.xml:20:5-44
 MERGED from [androidx.print:print:1.0.0] C:\Users\GYVX\.gradle\caches\8.13\transforms\0d87334eb9515c683a3cb8261fcaabab\transformed\print-1.0.0\AndroidManifest.xml:20:5-44
-MERGED from [androidx.exifinterface:exifinterface:1.3.6] C:\Users\GYVX\.gradle\caches\8.13\transforms\ecf4427025fe66308dd1b430fbf6e6d5\transformed\exifinterface-1.3.6\AndroidManifest.xml:20:5-22:41
-MERGED from [androidx.exifinterface:exifinterface:1.3.6] C:\Users\GYVX\.gradle\caches\8.13\transforms\ecf4427025fe66308dd1b430fbf6e6d5\transformed\exifinterface-1.3.6\AndroidManifest.xml:20:5-22:41
 	android:targetSdkVersion
 		INJECTED from C:\Users\GYVX\Documents\GitHub\File_manager\app\src\main\AndroidManifest.xml
 	android:minSdkVersion

@@ -88,6 +88,7 @@ dependencies {
     
     // Image loading for thumbnails
     implementation("io.coil-kt:coil-compose:2.5.0")
+    implementation("io.coil-kt:coil-video:2.5.0")
     
     // Pull-to-refresh
     implementation("com.google.accompanist:accompanist-swiperefresh:0.32.0")

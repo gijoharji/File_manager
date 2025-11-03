@@ -90,6 +90,74 @@ class FileManagerViewModel(application: Application) : AndroidViewModel(applicat
         setStorageContext(currentStack + path)
     }
 
+    fun handleStorageBack(): Boolean {
+        val stack = _storageNavigationStack.value
+        return when {
+            stack.size > 1 -> {
+                setStorageContext(stack.dropLast(1))
+                true
+            }
+
+            stack.isNotEmpty() -> {
+                dismissStorageBrowser()
+                true
+            }
+
+            else -> false
+        }
+    }
+
+    fun dismissStorageBrowser() {
+        clearSelection()
+        setStorageContext(emptyList())
+    }
+
+    private fun setStorageContext(stack: List<String>) {
+        _storageNavigationStack.value = stack
+
+        val newPath = stack.lastOrNull()
+        _currentStoragePath.value = newPath
+
+        if (newPath == null) {
+            _storageEntries.value = emptyList()
+            _isStorageLoading.value = false
+            return
+        }
+
+        loadStorageEntries(newPath)
+    }
+
+    private fun loadStorageEntries(path: String) {
+        viewModelScope.launch {
+            _isStorageLoading.value = true
+            try {
+                val entries = withContext(Dispatchers.IO) {
+                    FileUtils.listDirectoryEntries(path)
+                }
+                _storageEntries.value = entries
+            } catch (e: Exception) {
+                _storageEntries.value = emptyList()
+            } finally {
+                _isStorageLoading.value = false
+            }
+        }
+    }
+
+    fun openStorage(path: String) {
+        clearSelection()
+        _selectedCategory.value = null
+        setStorageContext(listOf(path))
+    }
+
+    fun navigateIntoStorage(path: String) {
+        val currentStack = _storageNavigationStack.value
+        if (currentStack.isNotEmpty() && currentStack.last() == path) {
+            return
+        }
+
+        setStorageContext(currentStack + path)
+    }
+
     fun navigateUpStorage(): Boolean {
         val stack = _storageNavigationStack.value
         if (stack.size <= 1) {

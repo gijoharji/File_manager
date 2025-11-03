@@ -32,7 +32,6 @@ class FileManagerViewModel(application: Application) : AndroidViewModel(applicat
     init {
         scanFiles()
     }
-
     fun scanFiles() {
         viewModelScope.launch {
             _isLoading.value = true

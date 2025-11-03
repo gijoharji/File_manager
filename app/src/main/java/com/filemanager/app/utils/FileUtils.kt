@@ -57,9 +57,9 @@ object FileUtils {
         scanDirectoryRecursive(storageRoot, categoryMap)
 
         // Some document locations (like Android/media) may be visible only via MediaStore APIs.
-        // Augment our scan with anything MediaStore exposes for the Documents bucket so the
-        // category reflects all accessible files for the user.
-        collectDocumentsFromMediaStore(context, categoryMap)
+        // Replace the scanned document bucket with MediaStore PDFs so we rely on the correct
+        // MIME type (application/pdf) while debugging missing document counts.
+        categoryMap[FileCategory.DOCUMENTS] = loadDocumentsFromMediaStore(context)
 
         // Build result
         categoryMap.mapValues { (category, sourceMap) ->
@@ -141,24 +141,16 @@ object FileUtils {
     }
 
     @SuppressLint("Range")
-    private fun collectDocumentsFromMediaStore(
-        context: Context,
-        categoryMap: MutableMap<FileCategory, MutableMap<String, MutableList<FileItem>>>
-    ) {
-        val documentsBucket = categoryMap[FileCategory.DOCUMENTS] ?: return
-        val knownPaths = documentsBucket.values
-            .flatMapTo(mutableSetOf()) { source -> source.map(FileItem::path) }
-
+    private fun loadDocumentsFromMediaStore(context: Context): MutableMap<String, MutableList<FileItem>> {
         val resolver = context.contentResolver
         val projection = arrayOf(
+            MediaStore.Files.FileColumns.DATA,
             MediaStore.Files.FileColumns.DISPLAY_NAME,
             MediaStore.Files.FileColumns.SIZE,
-            MediaStore.Files.FileColumns.DATE_MODIFIED,
-            MediaStore.Files.FileColumns.DATA,
-            MediaStore.Files.FileColumns.RELATIVE_PATH
+            MediaStore.Files.FileColumns.DATE_MODIFIED
         )
-        val selection = "${MediaStore.Files.FileColumns.MEDIA_TYPE} = ?"
-        val selectionArgs = arrayOf(MediaStore.Files.FileColumns.MEDIA_TYPE_NONE.toString())
+        val selection = "${MediaStore.Files.FileColumns.MIME_TYPE} = ?"
+        val selectionArgs = arrayOf("application/pdf")
 
         val cursor = try {
             resolver.query(
@@ -166,47 +158,47 @@ object FileUtils {
                 projection,
                 selection,
                 selectionArgs,
-                null
+                "${MediaStore.Files.FileColumns.DATE_MODIFIED} DESC"
             )
         } catch (e: Exception) {
             null
-        } ?: return
+        } ?: return mutableMapOf()
+
+        val storageRootPath = Environment.getExternalStorageDirectory().absolutePath
+        val documents = mutableMapOf<String, MutableList<FileItem>>()
 
         cursor.use { c ->
-            val storageRoot = Environment.getExternalStorageDirectory()
-            val relativeIndex = c.getColumnIndex(MediaStore.Files.FileColumns.RELATIVE_PATH)
             val dataIndex = c.getColumnIndex(MediaStore.Files.FileColumns.DATA)
             val nameIndex = c.getColumnIndex(MediaStore.Files.FileColumns.DISPLAY_NAME)
             val sizeIndex = c.getColumnIndex(MediaStore.Files.FileColumns.SIZE)
             val dateIndex = c.getColumnIndex(MediaStore.Files.FileColumns.DATE_MODIFIED)
 
             while (c.moveToNext()) {
-                val displayName = if (nameIndex != -1) c.getString(nameIndex) else null
-                if (displayName.isNullOrBlank()) continue
+                val path = if (dataIndex != -1) c.getString(dataIndex) else null
+                if (path.isNullOrBlank()) continue
 
-                val absolutePath = when {
-                    dataIndex != -1 -> c.getString(dataIndex)
-                    relativeIndex != -1 -> {
-                        val relative = c.getString(relativeIndex) ?: continue
-                        File(storageRoot, relative).resolve(displayName).absolutePath
-                    }
-                    else -> null
-                } ?: continue
+                val file = File(path)
+                if (!file.exists()) continue
 
-                val file = File(absolutePath)
-                val category = classifyFile(file) ?: continue
-                if (category != FileCategory.DOCUMENTS) continue
+                val name = when {
+                    nameIndex != -1 -> c.getString(nameIndex)
+                    else -> file.name
+                }?.takeIf { it.isNotBlank() } ?: continue
 
-                if (!knownPaths.add(absolutePath)) continue
+                val size = when {
+                    sizeIndex != -1 -> c.getLong(sizeIndex)
+                    else -> file.length()
+                }
 
-                val size = if (sizeIndex != -1) c.getLong(sizeIndex) else file.length()
-                val modified = if (dateIndex != -1) c.getLong(dateIndex) * 1000 else file.lastModified()
-                val sourcePath = getSourcePath(file)
+                val modifiedSeconds = if (dateIndex != -1) c.getLong(dateIndex) else null
+                val modified = modifiedSeconds?.let { it * 1000 } ?: file.lastModified()
 
-                documentsBucket.getOrPut(sourcePath) { mutableListOf() }.add(
+                val sourcePath = file.parent ?: storageRootPath
+                val bucket = documents.getOrPut(sourcePath) { mutableListOf() }
+                bucket.add(
                     FileItem(
-                        path = file.absolutePath,
-                        name = file.name,
+                        path = path,
+                        name = name,
                         size = size,
                         dateModified = modified,
                         category = FileCategory.DOCUMENTS
@@ -214,6 +206,8 @@ object FileUtils {
                 )
             }
         }
+
+        return documents
     }
 
     private fun classifyFile(file: File): FileCategory? {

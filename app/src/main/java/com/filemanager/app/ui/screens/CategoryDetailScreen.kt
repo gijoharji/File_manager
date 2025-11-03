@@ -476,7 +476,7 @@ fun FileTile(
 ) {
     Card(
         modifier = Modifier
-            .aspectRatio(1f)
+            .aspectRatio(0.7f)
             .pointerInput(Unit) {
                 detectTapGestures(
                     onLongPress = { onLongPress() },

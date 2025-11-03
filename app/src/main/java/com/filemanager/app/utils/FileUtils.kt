@@ -126,7 +126,6 @@ object FileUtils {
             // Skip directories we can't access
         }
     }
-
     private fun getSourcePath(file: File): String {
         val absolutePath = file.absolutePath
         val storageRoot = Environment.getExternalStorageDirectory().absolutePath

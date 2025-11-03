@@ -112,13 +112,20 @@ object FileUtils {
                         )
                     }
                 } else if (file.isDirectory) {
-                    // Skip some system directories
-                    if (file.name.startsWith(".") || 
-                        file.name == "Android" ||
-                        file.name == "Lost.Dir" ||
-                        file.name == "LOST.DIR") {
+                    // Skip hidden and system cache directories
+                    if (file.name.startsWith(".") ||
+                        file.name.equals("Lost.Dir", ignoreCase = true)) {
                         continue
                     }
+
+                    // Avoid scanning restricted Android directories while keeping Android/media
+                    val parentName = file.parentFile?.name?.lowercase(Locale.getDefault())
+                    val nameLower = file.name.lowercase(Locale.getDefault())
+                    val isAndroidChild = parentName == "android"
+                    if (isAndroidChild && (nameLower == "data" || nameLower == "obb")) {
+                        continue
+                    }
+
                     scanDirectoryRecursive(file, categoryMap)
                 }
             }

@@ -17,7 +17,35 @@ enum class FileCategory(val displayName: String, val extensions: Set<String>) {
     ),
     DOCUMENTS(
         "Documents",
-        setOf("pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx", "txt", "rtf", "odt", "ods", "odp")
+        setOf(
+            "pdf",
+            "doc",
+            "docx",
+            "docm",
+            "dot",
+            "dotx",
+            "dotm",
+            "xls",
+            "xlsx",
+            "xlsm",
+            "xlsb",
+            "ppt",
+            "pptx",
+            "pptm",
+            "pps",
+            "ppsx",
+            "ppsm",
+            "pot",
+            "potx",
+            "potm",
+            "txt",
+            "rtf",
+            "odt",
+            "ods",
+            "odp",
+            "csv",
+            "xps"
+        )
     ),
     APKS(
         "APKs",

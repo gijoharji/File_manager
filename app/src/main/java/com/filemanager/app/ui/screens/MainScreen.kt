@@ -42,7 +42,7 @@ fun MainScreen(viewModel: FileManagerViewModel) {
     }
 
     BackHandler(enabled = currentStoragePath != null) {
-        val handled = viewModel.popStorageLevel()
+        val handled = viewModel.navigateUpStorage()
         if (!handled) {
             viewModel.closeStorageBrowser()
         }
@@ -95,7 +95,7 @@ fun MainScreen(viewModel: FileManagerViewModel) {
                     entries = storageEntries,
                     isLoading = isStorageLoading,
                     onNavigateUp = {
-                        val handled = viewModel.popStorageLevel()
+                        val handled = viewModel.navigateUpStorage()
                         if (!handled) {
                             viewModel.closeStorageBrowser()
                         }

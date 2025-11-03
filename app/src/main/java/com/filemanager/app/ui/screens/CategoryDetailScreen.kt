@@ -47,6 +47,7 @@ import com.google.accompanist.swiperefresh.SwipeRefresh
 import com.google.accompanist.swiperefresh.rememberSwipeRefreshState
 import coil.compose.rememberAsyncImagePainter
 import coil.request.ImageRequest
+import coil.request.videoFrameMillis
 import com.filemanager.app.MainActivity
 import com.filemanager.app.data.FileCategory
 import com.filemanager.app.data.FileItem
@@ -672,13 +673,20 @@ fun FileTile(
                     .background(MaterialTheme.colorScheme.surfaceVariant)
             ) {
                 if (category == FileCategory.IMAGES || category == FileCategory.VIDEOS) {
+                    val context = LocalContext.current
+                    val painter = rememberAsyncImagePainter(
+                        ImageRequest.Builder(context)
+                            .data(File(fileItem.path))
+                            .apply {
+                                if (category == FileCategory.VIDEOS) {
+                                    videoFrameMillis(0)
+                                }
+                            }
+                            .crossfade(true)
+                            .build()
+                    )
                     Image(
-                        painter = rememberAsyncImagePainter(
-                            ImageRequest.Builder(LocalContext.current)
-                                .data(File(fileItem.path))
-                                .crossfade(true)
-                                .build()
-                        ),
+                        painter = painter,
                         contentDescription = fileItem.name,
                         modifier = Modifier.fillMaxSize(),
                         contentScale = ContentScale.Crop
@@ -814,13 +822,20 @@ fun FolderTile(
                     .background(MaterialTheme.colorScheme.surfaceVariant)
             ) {
                 if (previewFile != null && (category == FileCategory.IMAGES || category == FileCategory.VIDEOS)) {
+                    val context = LocalContext.current
+                    val painter = rememberAsyncImagePainter(
+                        ImageRequest.Builder(context)
+                            .data(File(previewFile.path))
+                            .apply {
+                                if (category == FileCategory.VIDEOS) {
+                                    videoFrameMillis(0)
+                                }
+                            }
+                            .crossfade(true)
+                            .build()
+                    )
                     Image(
-                        painter = rememberAsyncImagePainter(
-                            ImageRequest.Builder(LocalContext.current)
-                                .data(File(previewFile.path))
-                                .crossfade(true)
-                                .build()
-                        ),
+                        painter = painter,
                         contentDescription = previewFile.name,
                         modifier = Modifier.fillMaxSize(),
                         contentScale = ContentScale.Crop

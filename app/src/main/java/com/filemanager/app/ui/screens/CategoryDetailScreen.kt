@@ -53,6 +53,8 @@ import com.filemanager.app.utils.FileUtils
 import java.io.File
 import java.util.Locale
 
+private const val BottomBarDisabledAlpha = 0.38f
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CategoryDetailScreen(
@@ -523,7 +525,7 @@ private fun BottomBarActionButton(
     val displayColor = if (enabled) {
         contentColor
     } else {
-        contentColor.copy(alpha = ContentAlpha.disabled)
+        contentColor.copy(alpha = BottomBarDisabledAlpha)
     }
 
     Box(
@@ -566,7 +568,7 @@ private fun BottomBarMoreAction(
     val displayColor = if (enabled) {
         MaterialTheme.colorScheme.onSurface
     } else {
-        MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.disabled)
+        MaterialTheme.colorScheme.onSurface.copy(alpha = BottomBarDisabledAlpha)
     }
 
     Box(

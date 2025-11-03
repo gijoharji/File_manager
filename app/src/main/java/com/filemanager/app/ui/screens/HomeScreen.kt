@@ -35,6 +35,9 @@ fun HomeGridScreen(
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val storagePath = android.os.Environment.getExternalStorageDirectory().absolutePath
+    val downloadsPath = android.os.Environment
+        .getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_DOWNLOADS)
+        ?.absolutePath
     val storageInfo = remember { FileUtils.getStorageInfo(storagePath) }
     val downloadsInfo = remember { FileUtils.getDownloadsInfo() }
     
@@ -54,15 +57,18 @@ fun HomeGridScreen(
             )
             
             // Downloads
-            add(
-                HomeItem.DownloadsItem(
-                    title = "Downloads",
-                    subtitle = "${FileUtils.formatFileSize(downloadsInfo.second)} (${downloadsInfo.first})",
-                    icon = "downloads",
-                    itemCount = downloadsInfo.first,
-                    totalSize = downloadsInfo.second
+            downloadsPath?.let { path ->
+                add(
+                    HomeItem.DownloadsItem(
+                        title = "Downloads",
+                        subtitle = "${FileUtils.formatFileSize(downloadsInfo.second)} (${downloadsInfo.first})",
+                        icon = "downloads",
+                        itemCount = downloadsInfo.first,
+                        totalSize = downloadsInfo.second,
+                        path = path
+                    )
                 )
-            )
+            }
             
             // Categories
             add(
@@ -146,10 +152,7 @@ fun HomeGridScreen(
                     when (item) {
                         is HomeItem.CategoryItem -> onCategoryClick(item.category)
                         is HomeItem.StorageItem -> onStorageClick(item.path)
-                        is HomeItem.DownloadsItem -> {
-                            // Handle downloads click
-                            onCategoryClick(FileCategory.IMAGES) // Navigate to Downloads folder
-                        }
+                        is HomeItem.DownloadsItem -> onStorageClick(item.path)
                     }
                 }
             )

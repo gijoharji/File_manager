@@ -10,6 +10,7 @@ import com.filemanager.app.data.CategoryData
 import com.filemanager.app.data.FileCategory
 import com.filemanager.app.data.FileItem
 import com.filemanager.app.data.SourceFolderData
+import com.filemanager.app.data.StorageEntry
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -310,6 +311,91 @@ object FileUtils {
         } catch (e: Exception) {
             false
         }
+    }
+
+    fun listDirectoryEntries(path: String): List<StorageEntry> {
+        val directory = File(path)
+        if (!directory.exists() || !directory.isDirectory || !directory.canRead()) {
+            return emptyList()
+        }
+
+        val children = try {
+            directory.listFiles()
+        } catch (e: Exception) {
+            null
+        }?.filterNot { it.isHidden } ?: return emptyList()
+
+        return children.map { file ->
+            val itemCount = if (file.isDirectory) {
+                try {
+                    file.listFiles()?.count { !it.isHidden } ?: 0
+                } catch (e: Exception) {
+                    0
+                }
+            } else {
+                0
+            }
+
+            val size = if (file.isDirectory) {
+                calculateDirectorySize(file)
+            } else {
+                file.length()
+            }
+
+            StorageEntry(
+                path = file.absolutePath,
+                name = file.name.ifBlank { file.absolutePath },
+                isDirectory = file.isDirectory,
+                size = size,
+                itemCount = itemCount,
+                lastModified = file.lastModified()
+            )
+        }.sortedWith(
+            compareByDescending<StorageEntry> { it.isDirectory }
+                .thenBy { it.name.lowercase(Locale.getDefault()) }
+        )
+    }
+
+    private fun calculateDirectorySize(directory: File): Long {
+        var totalSize = 0L
+        val stack: ArrayDeque<File> = ArrayDeque()
+        val visited = mutableSetOf<String>()
+        stack.add(directory)
+
+        while (stack.isNotEmpty()) {
+            val current = stack.removeFirst()
+            val canonicalPath = try {
+                current.canonicalPath
+            } catch (e: Exception) {
+                current.absolutePath
+            }
+
+            if (!visited.add(canonicalPath)) {
+                continue
+            }
+
+            val files = try {
+                current.listFiles()
+            } catch (e: Exception) {
+                null
+            } ?: continue
+
+            for (child in files) {
+                if (child.isHidden) continue
+
+                try {
+                    if (child.isFile) {
+                        totalSize += child.length()
+                    } else if (child.isDirectory) {
+                        stack.add(child)
+                    }
+                } catch (_: Exception) {
+                    // Ignore files we can't read
+                }
+            }
+        }
+
+        return totalSize
     }
 }
 

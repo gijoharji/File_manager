@@ -7,10 +7,13 @@ import com.filemanager.app.data.CategoryData
 import com.filemanager.app.data.FileCategory
 import com.filemanager.app.data.FileItem
 import com.filemanager.app.utils.FileUtils
+import com.filemanager.app.data.StorageEntry
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class FileManagerViewModel(application: Application) : AndroidViewModel(application) {
     
@@ -22,12 +25,24 @@ class FileManagerViewModel(application: Application) : AndroidViewModel(applicat
     
     private val _selectedCategory = MutableStateFlow<FileCategory?>(null)
     val selectedCategory: StateFlow<FileCategory?> = _selectedCategory.asStateFlow()
-    
+
     private val _selectedFiles = MutableStateFlow<Set<String>>(emptySet())
     val selectedFiles: StateFlow<Set<String>> = _selectedFiles.asStateFlow()
-    
+
     private val _isSelectionMode = MutableStateFlow(false)
     val isSelectionMode: StateFlow<Boolean> = _isSelectionMode.asStateFlow()
+
+    private val _storageNavigationStack = MutableStateFlow<List<String>>(emptyList())
+    val storageNavigationStack: StateFlow<List<String>> = _storageNavigationStack.asStateFlow()
+
+    private val _currentStoragePath = MutableStateFlow<String?>(null)
+    val currentStoragePath: StateFlow<String?> = _currentStoragePath.asStateFlow()
+
+    private val _storageEntries = MutableStateFlow<List<StorageEntry>>(emptyList())
+    val storageEntries: StateFlow<List<StorageEntry>> = _storageEntries.asStateFlow()
+
+    private val _isStorageLoading = MutableStateFlow(false)
+    val isStorageLoading: StateFlow<Boolean> = _isStorageLoading.asStateFlow()
 
     init {
         scanFiles()
@@ -55,6 +70,57 @@ class FileManagerViewModel(application: Application) : AndroidViewModel(applicat
     fun clearCategorySelection() {
         _selectedCategory.value = null
         clearSelection()
+    }
+
+    fun openStorage(path: String) {
+        _selectedCategory.value = null
+        _storageNavigationStack.value = listOf(path)
+        _currentStoragePath.value = path
+        clearSelection()
+        loadStorageEntries(path)
+    }
+
+    fun navigateIntoStorage(path: String) {
+        val stack = _storageNavigationStack.value + path
+        _storageNavigationStack.value = stack
+        _currentStoragePath.value = path
+        loadStorageEntries(path)
+    }
+
+    fun navigateUpStorage(): Boolean {
+        val stack = _storageNavigationStack.value
+        if (stack.size > 1) {
+            val newStack = stack.dropLast(1)
+            val newPath = newStack.last()
+            _storageNavigationStack.value = newStack
+            _currentStoragePath.value = newPath
+            loadStorageEntries(newPath)
+            return true
+        }
+        return false
+    }
+
+    fun closeStorageBrowser() {
+        _storageNavigationStack.value = emptyList()
+        _currentStoragePath.value = null
+        _storageEntries.value = emptyList()
+        _isStorageLoading.value = false
+    }
+
+    private fun loadStorageEntries(path: String) {
+        viewModelScope.launch {
+            _isStorageLoading.value = true
+            try {
+                val entries = withContext(Dispatchers.IO) {
+                    FileUtils.listDirectoryEntries(path)
+                }
+                _storageEntries.value = entries
+            } catch (e: Exception) {
+                _storageEntries.value = emptyList()
+            } finally {
+                _isStorageLoading.value = false
+            }
+        }
     }
 
     fun toggleFileSelection(filePath: String) {

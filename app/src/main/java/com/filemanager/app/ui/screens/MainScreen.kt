@@ -5,7 +5,9 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.activity.compose.BackHandler
@@ -32,20 +34,18 @@ fun MainScreen(viewModel: FileManagerViewModel) {
     val context = LocalContext.current
     var showExitDialog by remember { mutableStateOf(false) }
     var showMenu by remember { mutableStateOf(false) }
-    
-    // Handle system back button
+
+    // System back handling
     BackHandler(enabled = selectedCategory != null) {
         viewModel.clearCategorySelection()
     }
-
     BackHandler(enabled = storageState.currentPath != null) {
         viewModel.navigateStorageBack()
     }
-
     BackHandler(enabled = selectedCategory == null && storageState.currentPath == null) {
         showExitDialog = true
     }
-    
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -62,9 +62,7 @@ fun MainScreen(viewModel: FileManagerViewModel) {
                     actionIconContentColor = Color.White
                 ),
                 actions = {
-                    IconButton(onClick = { 
-                        // Overflow menu options
-                    }) {
+                    IconButton(onClick = { /* overflow menu */ }) {
                         Icon(Icons.Default.MoreVert, contentDescription = "More options")
                     }
                 }
@@ -78,10 +76,9 @@ fun MainScreen(viewModel: FileManagerViewModel) {
                         .fillMaxSize()
                         .padding(padding),
                     contentAlignment = Alignment.Center
-                ) {
-                    CircularProgressIndicator()
-                }
+                ) { CircularProgressIndicator() }
             }
+
             storageState.currentPath != null -> {
                 StorageBrowserScreen(
                     currentPath = storageState.currentPath!!,
@@ -89,11 +86,12 @@ fun MainScreen(viewModel: FileManagerViewModel) {
                     entries = storageState.entries,
                     isLoading = storageState.isLoading,
                     onNavigateUp = { viewModel.navigateStorageBack() },
-                    onFolderClick = { entry -> viewModel.openStorageFolder(entry.path) },
-                    onClose = { viewModel.closeStorageBrowser() },
+                    onFolderClick = { entry -> viewModel.navigateIntoStorage(entry.path) }, // CHANGED
+                    onClose = { viewModel.closeStorageBrowser() },                          // CHANGED
                     modifier = Modifier.padding(padding)
                 )
             }
+
             selectedCategory != null -> {
                 CategoryDetailScreen(
                     category = selectedCategory!!,
@@ -101,36 +99,30 @@ fun MainScreen(viewModel: FileManagerViewModel) {
                     modifier = Modifier.padding(padding)
                 )
             }
+
             else -> {
                 HomeGridScreen(
                     categories = categories,
                     onCategoryClick = { viewModel.selectCategory(it) },
-                    onStorageClick = { path -> viewModel.openStorageRoot(path) },
+                    onStorageClick = { path -> viewModel.openStorage(path) },               // CHANGED
                     modifier = Modifier.padding(padding)
                 )
             }
         }
     }
-    
-    // Exit confirmation dialog
+
     if (showExitDialog) {
         AlertDialog(
             onDismissRequest = { showExitDialog = false },
             title = { Text("Exit File Manager") },
             text = { Text("Are you sure you want to exit?") },
             confirmButton = {
-                TextButton(
-                    onClick = {
-                        (context as? android.app.Activity)?.finish()
-                    }
-                ) {
+                TextButton(onClick = { (context as? android.app.Activity)?.finish() }) {
                     Text("Exit")
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showExitDialog = false }) {
-                    Text("Cancel")
-                }
+                TextButton(onClick = { showExitDialog = false }) { Text("Cancel") }
             }
         )
     }
@@ -209,4 +201,3 @@ fun CategoryCard(
         }
     }
 }
-

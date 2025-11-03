@@ -30,5 +30,6 @@ sealed class HomeItem {
         val itemCount: Int,
         val totalSize: Long
     ) : HomeItem()
+
 }
 

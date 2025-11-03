@@ -48,6 +48,9 @@ class FileManagerViewModel(application: Application) : AndroidViewModel(applicat
         scanFiles()
     }
 
+    init {
+        scanFiles()
+    }
     fun scanFiles() {
         viewModelScope.launch {
             _isLoading.value = true

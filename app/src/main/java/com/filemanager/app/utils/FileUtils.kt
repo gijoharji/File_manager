@@ -32,20 +32,6 @@ object FileUtils {
         File(Environment.getExternalStorageDirectory(), "Android/media/com.whatsapp")
     ).filter { it.exists() || it.parentFile?.exists() == true }
 
-    private val documentLocationRoots = listOf(
-        Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS),
-        Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
-        File(Environment.getExternalStorageDirectory(), "Documents"),
-        File(Environment.getExternalStorageDirectory(), "Document"),
-        File(Environment.getExternalStorageDirectory(), "My Documents"),
-        File(Environment.getExternalStorageDirectory(), "Download")
-    ).distinctBy { it.absolutePath }
-
-    private val documentLocationPrefixes: Set<String> = documentLocationRoots
-        .map { it.absolutePath.trimEnd(File.separatorChar) }
-        .filter { it.isNotBlank() }
-        .toSet()
-
     fun formatFileSize(bytes: Long): String {
         if (bytes < 1024) return "$bytes B"
         val exp = (kotlin.math.ln(bytes.toDouble()) / kotlin.math.ln(1024.0)).toInt()
@@ -236,18 +222,7 @@ object FileUtils {
             return category
         }
 
-        if (isDocumentLocation(file)) {
-            return FileCategory.DOCUMENTS
-        }
-
         return null
-    }
-
-    private fun isDocumentLocation(file: File): Boolean {
-        val path = file.absolutePath
-        return documentLocationPrefixes.any { prefix ->
-            path == prefix || path.startsWith(prefix + File.separator)
-        }
     }
     private fun getSourcePath(file: File): String {
         val absolutePath = file.absolutePath

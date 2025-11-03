@@ -126,6 +126,57 @@ class FileManagerViewModel(application: Application) : AndroidViewModel(applicat
         }
     }
 
+    fun openStorage(path: String) {
+        _selectedCategory.value = null
+        _storageNavigationStack.value = listOf(path)
+        _currentStoragePath.value = path
+        clearSelection()
+        loadStorageEntries(path)
+    }
+
+    fun navigateIntoStorage(path: String) {
+        val stack = _storageNavigationStack.value + path
+        _storageNavigationStack.value = stack
+        _currentStoragePath.value = path
+        loadStorageEntries(path)
+    }
+
+    fun navigateUpStorage(): Boolean {
+        val stack = _storageNavigationStack.value
+        if (stack.size > 1) {
+            val newStack = stack.dropLast(1)
+            val newPath = newStack.last()
+            _storageNavigationStack.value = newStack
+            _currentStoragePath.value = newPath
+            loadStorageEntries(newPath)
+            return true
+        }
+        return false
+    }
+
+    fun closeStorageBrowser() {
+        _storageNavigationStack.value = emptyList()
+        _currentStoragePath.value = null
+        _storageEntries.value = emptyList()
+        _isStorageLoading.value = false
+    }
+
+    private fun loadStorageEntries(path: String) {
+        viewModelScope.launch {
+            _isStorageLoading.value = true
+            try {
+                val entries = withContext(Dispatchers.IO) {
+                    FileUtils.listDirectoryEntries(path)
+                }
+                _storageEntries.value = entries
+            } catch (e: Exception) {
+                _storageEntries.value = emptyList()
+            } finally {
+                _isStorageLoading.value = false
+            }
+        }
+    }
+
     fun toggleFileSelection(filePath: String) {
         val current = _selectedFiles.value.toMutableSet()
         if (current.contains(filePath)) {

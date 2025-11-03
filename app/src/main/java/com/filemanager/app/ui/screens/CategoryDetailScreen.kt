@@ -18,6 +18,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.activity.compose.BackHandler
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
@@ -37,6 +38,7 @@ import com.filemanager.app.data.FileItem
 import com.filemanager.app.ui.viewmodel.FileManagerViewModel
 import com.filemanager.app.utils.FileUtils
 import java.io.File
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -46,7 +48,7 @@ fun CategoryDetailScreen(
     modifier: Modifier = Modifier
 ) {
     val categories by viewModel.categories.collectAsStateWithLifecycle()
-    val selectedFolders by remember { mutableStateOf(mutableSetOf<String>()) }
+    var selectedFolders by remember { mutableStateOf(setOf<String>()) }
     val isSelectionMode by viewModel.isSelectionMode.collectAsStateWithLifecycle()
     val context = LocalContext.current
     
@@ -64,7 +66,7 @@ fun CategoryDetailScreen(
     BackHandler(enabled = true) {
         if (isSelectionMode || selectedFolders.isNotEmpty()) {
             viewModel.clearSelection()
-            selectedFolders.clear()
+            selectedFolders = emptySet()
         } else {
             viewModel.clearCategorySelection()
         }
@@ -90,7 +92,7 @@ fun CategoryDetailScreen(
                         onClick = {
                             if (isSelectionMode || selectedFolders.isNotEmpty()) {
                                 viewModel.clearSelection()
-                                selectedFolders.clear()
+                                selectedFolders = emptySet()
                             } else {
                                 viewModel.clearCategorySelection()
                             }
@@ -130,7 +132,7 @@ fun CategoryDetailScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         TextButton(onClick = {
-                            selectedFolders.addAll(filteredSources.keys)
+                            selectedFolders = filteredSources.keys.toSet()
                         }) {
                             Text("Select All")
                         }
@@ -160,7 +162,7 @@ fun CategoryDetailScreen(
                             }
                             (context as MainActivity).shareFiles(files.map { it.path })
                             viewModel.clearSelection()
-                            selectedFolders.clear()
+                            selectedFolders = emptySet()
                         }) {
                             Icon(Icons.Default.Share, contentDescription = "Share")
                             Spacer(modifier = Modifier.width(4.dp))
@@ -176,6 +178,10 @@ fun CategoryDetailScreen(
             onRefresh = { viewModel.scanFiles() },
             modifier = modifier.fillMaxSize()
         ) {
+            val sortedSources = remember(filteredSources) {
+                filteredSources.entries.sortedBy { it.value.name.lowercase(Locale.getDefault()) }
+            }
+
             LazyVerticalGrid(
                 columns = GridCells.Fixed(3),
                 modifier = Modifier
@@ -185,7 +191,7 @@ fun CategoryDetailScreen(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                items(filteredSources.toList()) { (path, sourceData) ->
+                items(sortedSources) { (path, sourceData) ->
                     FolderTile(
                         sourceData = sourceData,
                         category = category,
@@ -194,14 +200,14 @@ fun CategoryDetailScreen(
                             if (!isSelectionMode) {
                                 viewModel.clearSelection()
                             }
-                            selectedFolders.add(path)
+                            selectedFolders = selectedFolders + path
                         },
                         onClick = {
                             if (isSelectionMode || selectedFolders.isNotEmpty()) {
-                                if (selectedFolders.contains(path)) {
-                                    selectedFolders.remove(path)
+                                selectedFolders = if (selectedFolders.contains(path)) {
+                                    selectedFolders - path
                                 } else {
-                                    selectedFolders.add(path)
+                                    selectedFolders + path
                                 }
                             } else {
                                 // Navigate to folder contents
@@ -254,7 +260,7 @@ fun CategoryDetailScreen(
                         showDeleteDialog = false
                         if (success) {
                             viewModel.clearSelection()
-                            selectedFolders.clear()
+                            selectedFolders = emptySet()
                             viewModel.scanFiles()
                         }
                         Toast.makeText(
@@ -291,7 +297,7 @@ fun CategoryDetailScreen(
                 ).show()
                 if (success) {
                     viewModel.clearSelection()
-                    selectedFolders.clear()
+                    selectedFolders = emptySet()
                     viewModel.scanFiles()
                     showMoveCopyDialog = false
                 }
@@ -308,7 +314,7 @@ fun CategoryDetailScreen(
                 ).show()
                 if (success) {
                     viewModel.clearSelection()
-                    selectedFolders.clear()
+                    selectedFolders = emptySet()
                     viewModel.scanFiles()
                     showMoveCopyDialog = false
                 }
@@ -325,10 +331,10 @@ fun FolderTile(
     onLongPress: () -> Unit,
     onClick: () -> Unit
 ) {
-    val previewFiles = remember(sourceData.files) {
-        sourceData.files.take(4)
+    val previewFile = remember(sourceData.files) {
+        sourceData.files.firstOrNull()
     }
-    
+
     Card(
         modifier = Modifier
             .aspectRatio(1f)
@@ -343,105 +349,102 @@ fun FolderTile(
             defaultElevation = if (isSelected) 8.dp else 2.dp
         ),
         colors = CardDefaults.cardColors(
-            containerColor = if (isSelected) 
-                MaterialTheme.colorScheme.primaryContainer 
-            else 
+            containerColor = if (isSelected)
+                MaterialTheme.colorScheme.primaryContainer
+            else
                 MaterialTheme.colorScheme.surface
         )
     ) {
         Column(
             modifier = Modifier.fillMaxSize()
         ) {
-            // Preview strip
-            Row(
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(80.dp)
-                    .background(MaterialTheme.colorScheme.surfaceVariant),
-                horizontalArrangement = Arrangement.spacedBy((-8).dp)
+                    .weight(1f)
+                    .clip(RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant)
             ) {
-                previewFiles.forEach { file ->
+                if (previewFile != null && (category == FileCategory.IMAGES || category == FileCategory.VIDEOS)) {
+                    Image(
+                        painter = rememberAsyncImagePainter(
+                            ImageRequest.Builder(LocalContext.current)
+                                .data(File(previewFile.path))
+                                .crossfade(true)
+                                .build()
+                        ),
+                        contentDescription = previewFile.name,
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
+                    )
+                } else {
                     Box(
                         modifier = Modifier
-                            .weight(1f)
-                            .fillMaxHeight()
+                            .fillMaxSize()
+                            .background(MaterialTheme.colorScheme.surfaceVariant),
+                        contentAlignment = Alignment.Center
                     ) {
-                        if (category == FileCategory.IMAGES || category == FileCategory.VIDEOS) {
-                            Image(
-                                painter = rememberAsyncImagePainter(
-                                    ImageRequest.Builder(LocalContext.current)
-                                        .data(File(file.path))
-                                        .crossfade(true)
-                                        .build()
-                                ),
-                                contentDescription = file.name,
-                                modifier = Modifier.fillMaxSize(),
-                                contentScale = ContentScale.Crop
-                            )
-                        } else {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .background(MaterialTheme.colorScheme.surfaceVariant),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = getIconForCategory(category),
-                                    contentDescription = null,
-                                    modifier = Modifier.size(24.dp),
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                        }
+                        Icon(
+                            imageVector = getIconForCategory(category),
+                            contentDescription = null,
+                            modifier = Modifier.size(36.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     }
                 }
-                // Fill remaining space if less than 4 previews
-                repeat(4 - previewFiles.size) {
-                    Spacer(modifier = Modifier.weight(1f))
+
+                Icon(
+                    imageVector = Icons.Default.Folder,
+                    contentDescription = null,
+                    modifier = Modifier
+                        .align(Alignment.TopStart)
+                        .padding(10.dp)
+                        .size(26.dp),
+                    tint = MaterialTheme.colorScheme.primary
+                )
+
+                if (isSelected) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.2f))
+                    )
                 }
             }
-            
-            // Folder name and count
+
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 8.dp, vertical = 8.dp),
-                verticalArrangement = Arrangement.spacedBy(2.dp)
+                    .padding(horizontal = 10.dp, vertical = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 Text(
-                    text = sourceData.name,
+                    text = "${sourceData.name} (${sourceData.itemCount})",
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.Medium,
-                    maxLines = 1,
-                    modifier = Modifier.fillMaxWidth(),
+                    maxLines = 2,
                     overflow = TextOverflow.Ellipsis
                 )
-                Text(
-                    text = "(${sourceData.itemCount})",
-                    style = MaterialTheme.typography.bodySmall.copy(
-                        lineHeight = MaterialTheme.typography.bodySmall.fontSize * 1.3f,
-                        letterSpacing = (-0.1).sp
-                    ),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                if (sourceData.totalSize > 0) {
+                    Text(
+                        text = FileUtils.formatFileSize(sourceData.totalSize),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
+
+            if (isSelected) {
+                Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .wrapContentHeight(),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    softWrap = true
-                )
-            }
-            
-            // Selection indicator
-            if (isSelected) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(8.dp),
-                    contentAlignment = Alignment.BottomEnd
+                        .padding(horizontal = 10.dp, vertical = 8.dp),
+                    horizontalArrangement = Arrangement.End
                 ) {
                     Icon(
-                        Icons.Default.CheckCircle,
+                        imageVector = Icons.Default.CheckCircle,
                         contentDescription = "Selected",
                         tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(20.dp)

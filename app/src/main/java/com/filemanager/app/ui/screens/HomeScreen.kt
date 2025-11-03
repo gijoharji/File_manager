@@ -133,7 +133,7 @@ fun HomeGridScreen(
     }
 
     LazyVerticalGrid(
-        columns = GridCells.Fixed(3),
+        columns = GridCells.Adaptive(minSize = 120.dp),
         modifier = modifier.fillMaxSize(),
         contentPadding = PaddingValues(8.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -164,7 +164,8 @@ fun HomeGridItem(
 ) {
     Card(
         modifier = Modifier
-            .aspectRatio(1f)
+            .fillMaxWidth()
+            .heightIn(min = 132.dp)
             .clickable(onClick = onClick),
         shape = RoundedCornerShape(16.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
@@ -212,9 +213,7 @@ fun HomeGridItem(
                     ),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center,
-                    maxLines = 2,
                     modifier = Modifier.fillMaxWidth(),
-                    overflow = TextOverflow.Ellipsis,
                     softWrap = true
                 )
             }

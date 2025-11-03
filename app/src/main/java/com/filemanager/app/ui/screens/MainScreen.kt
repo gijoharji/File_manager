@@ -18,11 +18,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.filemanager.app.MainActivity
 import com.filemanager.app.data.FileCategory
 import com.filemanager.app.ui.viewmodel.FileManagerViewModel
 import com.filemanager.app.utils.FileUtils
-import java.io.File
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -30,6 +28,10 @@ fun MainScreen(viewModel: FileManagerViewModel) {
     val categories by viewModel.categories.collectAsStateWithLifecycle()
     val selectedCategory by viewModel.selectedCategory.collectAsStateWithLifecycle()
     val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
+    val currentStoragePath by viewModel.currentStoragePath.collectAsStateWithLifecycle()
+    val storageEntries by viewModel.storageEntries.collectAsStateWithLifecycle()
+    val isStorageLoading by viewModel.isStorageLoading.collectAsStateWithLifecycle()
+    val storageStack by viewModel.storageNavigationStack.collectAsStateWithLifecycle()
     val context = LocalContext.current
     var showExitDialog by remember { mutableStateOf(false) }
     var showMenu by remember { mutableStateOf(false) }
@@ -38,8 +40,12 @@ fun MainScreen(viewModel: FileManagerViewModel) {
     BackHandler(enabled = selectedCategory != null) {
         viewModel.clearCategorySelection()
     }
-    
-    BackHandler(enabled = selectedCategory == null) {
+
+    BackHandler(enabled = currentStoragePath != null) {
+        viewModel.handleStorageBack()
+    }
+
+    BackHandler(enabled = selectedCategory == null && currentStoragePath == null) {
         showExitDialog = true
     }
     
@@ -79,6 +85,18 @@ fun MainScreen(viewModel: FileManagerViewModel) {
                     CircularProgressIndicator()
                 }
             }
+            currentStoragePath != null -> {
+                StorageBrowserScreen(
+                    currentPath = currentStoragePath!!,
+                    navigationStack = storageStack,
+                    entries = storageEntries,
+                    isLoading = isStorageLoading,
+                    onNavigateUp = { viewModel.handleStorageBack() },
+                    onFolderClick = { entry -> viewModel.navigateIntoStorage(entry.path) },
+                    onClose = { viewModel.dismissStorageBrowser() },
+                    modifier = Modifier.padding(padding)
+                )
+            }
             selectedCategory != null -> {
                 CategoryDetailScreen(
                     category = selectedCategory!!,
@@ -90,9 +108,7 @@ fun MainScreen(viewModel: FileManagerViewModel) {
                 HomeGridScreen(
                     categories = categories,
                     onCategoryClick = { viewModel.selectCategory(it) },
-                    onStorageClick = { path ->
-                        // Handle storage click - could navigate to folder browser
-                    },
+                    onStorageClick = { path -> viewModel.openStorage(path) },
                     modifier = Modifier.padding(padding)
                 )
             }

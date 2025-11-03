@@ -28,7 +28,8 @@ sealed class HomeItem {
         override val subtitle: String,
         override val icon: String,
         val itemCount: Int,
-        val totalSize: Long
+        val totalSize: Long,
+        val path: String
     ) : HomeItem()
 }
 

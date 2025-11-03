@@ -101,14 +101,35 @@ class FileManagerViewModel(application: Application) : AndroidViewModel(applicat
         val selected = _selectedFiles.value
         val categories = _categories.value
         val selectedFiles = mutableListOf<FileItem>()
-        
+
         categories.values.forEach { categoryData ->
             categoryData.sources.values.forEach { source ->
                 selectedFiles.addAll(source.files.filter { it.path in selected })
             }
         }
-        
+
         return selectedFiles
+    }
+
+    fun renameSelectedFile(newName: String): Boolean {
+        val selected = _selectedFiles.value
+        if (selected.size != 1) return false
+
+        val filePath = selected.first()
+        val categories = _categories.value
+        val targetFile = categories.values
+            .asSequence()
+            .flatMap { it.sources.values.asSequence() }
+            .flatMap { it.files.asSequence() }
+            .firstOrNull { it.path == filePath }
+            ?: return false
+
+        val success = FileUtils.renameFile(targetFile, newName)
+        if (success) {
+            clearSelection()
+            scanFiles()
+        }
+        return success
     }
 }
 

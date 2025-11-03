@@ -49,29 +49,35 @@ fun CategoryDetailScreen(
 ) {
     val categories by viewModel.categories.collectAsStateWithLifecycle()
     var selectedFolders by remember { mutableStateOf(setOf<String>()) }
+    var currentFolderPath by remember { mutableStateOf<String?>(null) }
     val isSelectionMode by viewModel.isSelectionMode.collectAsStateWithLifecycle()
+    val selectedFiles by viewModel.selectedFiles.collectAsStateWithLifecycle()
     val context = LocalContext.current
-    
+
     val categoryData = categories[category]
     val sources = categoryData?.sources ?: emptyMap()
     var showMoveCopyDialog by remember { mutableStateOf(false) }
     var showDeleteDialog by remember { mutableStateOf(false) }
+    var showRenameDialog by remember { mutableStateOf(false) }
     var showSortMenu by remember { mutableStateOf(false) }
     var searchQuery by remember { mutableStateOf("") }
-    
+
     val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
     val swipeRefreshState = rememberSwipeRefreshState(isRefreshing = isLoading)
     
     // Handle system back button
     BackHandler(enabled = true) {
-        if (isSelectionMode || selectedFolders.isNotEmpty()) {
-            viewModel.clearSelection()
-            selectedFolders = emptySet()
-        } else {
-            viewModel.clearCategorySelection()
+        when {
+            isSelectionMode -> viewModel.clearSelection()
+            selectedFolders.isNotEmpty() -> selectedFolders = emptySet()
+            currentFolderPath != null -> {
+                currentFolderPath = null
+                viewModel.clearSelection()
+            }
+            else -> viewModel.clearCategorySelection()
         }
     }
-    
+
     // Filter sources based on search query
     val filteredSources = remember(sources, searchQuery) {
         if (searchQuery.isBlank()) {
@@ -83,18 +89,37 @@ fun CategoryDetailScreen(
         }
     }
 
+    val currentFolderData = remember(filteredSources, currentFolderPath) {
+        currentFolderPath?.let { filteredSources[it] }
+    }
+
+    LaunchedEffect(filteredSources, currentFolderPath) {
+        if (currentFolderPath != null && currentFolderData == null) {
+            currentFolderPath = null
+        }
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(category.displayName) },
+                title = {
+                    val titleText = when {
+                        currentFolderData != null -> "${currentFolderData.name} (${currentFolderData.itemCount})"
+                        else -> category.displayName
+                    }
+                    Text(titleText)
+                },
                 navigationIcon = {
                     IconButton(
                         onClick = {
-                            if (isSelectionMode || selectedFolders.isNotEmpty()) {
-                                viewModel.clearSelection()
-                                selectedFolders = emptySet()
-                            } else {
-                                viewModel.clearCategorySelection()
+                            when {
+                                isSelectionMode -> viewModel.clearSelection()
+                                selectedFolders.isNotEmpty() -> selectedFolders = emptySet()
+                                currentFolderPath != null -> {
+                                    currentFolderPath = null
+                                    viewModel.clearSelection()
+                                }
+                                else -> viewModel.clearCategorySelection()
                             }
                         }
                     ) {
@@ -111,17 +136,67 @@ fun CategoryDetailScreen(
                     IconButton(onClick = { /* Search functionality */ }) {
                         Icon(Icons.Default.Search, contentDescription = "Search")
                     }
-                    IconButton(onClick = { showSortMenu = true }) {
-                        Icon(Icons.Default.FilterList, contentDescription = "Sort/Filter")
-                    }
-                    IconButton(onClick = { /* More options */ }) {
-                        Icon(Icons.Default.MoreVert, contentDescription = "More")
+                    if (currentFolderData == null) {
+                        IconButton(onClick = { showSortMenu = true }) {
+                            Icon(Icons.Default.FilterList, contentDescription = "Sort/Filter")
+                        }
+                        IconButton(onClick = { /* More options */ }) {
+                            Icon(Icons.Default.MoreVert, contentDescription = "More")
+                        }
                     }
                 }
             )
         },
         bottomBar = {
-            if (isSelectionMode || selectedFolders.isNotEmpty()) {
+            if (currentFolderData != null && isSelectionMode) {
+                BottomAppBar(
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    modifier = Modifier.height(64.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceEvenly,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        TextButton(onClick = { showMoveCopyDialog = true }, enabled = selectedFiles.isNotEmpty()) {
+                            Icon(Icons.Default.ContentCopy, contentDescription = "Copy")
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Copy")
+                        }
+                        TextButton(onClick = { showMoveCopyDialog = true }, enabled = selectedFiles.isNotEmpty()) {
+                            Icon(Icons.Default.DriveFileMove, contentDescription = "Move")
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Move")
+                        }
+                        TextButton(
+                            onClick = { showRenameDialog = true },
+                            enabled = selectedFiles.size == 1
+                        ) {
+                            Icon(Icons.Default.Edit, contentDescription = "Rename")
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Rename")
+                        }
+                        TextButton(
+                            onClick = { showDeleteDialog = true },
+                            enabled = selectedFiles.isNotEmpty(),
+                            colors = ButtonDefaults.textButtonColors(
+                                contentColor = MaterialTheme.colorScheme.error
+                            )
+                        ) {
+                            Icon(Icons.Default.Delete, contentDescription = "Delete")
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Delete")
+                        }
+                        TextButton(onClick = {
+                            Toast.makeText(context, "More options coming soon", Toast.LENGTH_SHORT).show()
+                        }) {
+                            Icon(Icons.Default.MoreVert, contentDescription = "More")
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("More")
+                        }
+                    }
+                }
+            } else if (selectedFolders.isNotEmpty()) {
                 BottomAppBar(
                     containerColor = MaterialTheme.colorScheme.surface,
                     modifier = Modifier.height(64.dp)
@@ -178,47 +253,80 @@ fun CategoryDetailScreen(
             onRefresh = { viewModel.scanFiles() },
             modifier = modifier.fillMaxSize()
         ) {
-            val sortedSources = remember(filteredSources) {
-                filteredSources.entries.sortedBy { it.value.name.lowercase(Locale.getDefault()) }
-            }
-
-            LazyVerticalGrid(
-                columns = GridCells.Fixed(3),
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding),
-                contentPadding = PaddingValues(8.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                items(sortedSources) { (path, sourceData) ->
-                    FolderTile(
-                        sourceData = sourceData,
-                        category = category,
-                        isSelected = selectedFolders.contains(path),
-                        onLongPress = {
-                            if (!isSelectionMode) {
-                                viewModel.clearSelection()
-                            }
-                            selectedFolders = selectedFolders + path
-                        },
-                        onClick = {
-                            if (isSelectionMode || selectedFolders.isNotEmpty()) {
-                                selectedFolders = if (selectedFolders.contains(path)) {
-                                    selectedFolders - path
+            if (currentFolderData != null) {
+                val files = currentFolderData.files
+                LazyVerticalGrid(
+                    columns = GridCells.Fixed(3),
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(padding),
+                    contentPadding = PaddingValues(8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    items(files) { fileItem ->
+                        FileTile(
+                            fileItem = fileItem,
+                            category = fileItem.category ?: category,
+                            isSelected = selectedFiles.contains(fileItem.path),
+                            onLongPress = {
+                                viewModel.toggleFileSelection(fileItem.path)
+                            },
+                            onClick = {
+                                if (isSelectionMode) {
+                                    viewModel.toggleFileSelection(fileItem.path)
                                 } else {
-                                    selectedFolders + path
+                                    viewModel.toggleFileSelection(fileItem.path)
                                 }
-                            } else {
-                                // Navigate to folder contents
                             }
-                        }
-                    )
+                        )
+                    }
+                }
+            } else {
+                val sortedSources = remember(filteredSources) {
+                    filteredSources.entries.sortedBy { it.value.name.lowercase(Locale.getDefault()) }
+                }
+
+                LazyVerticalGrid(
+                    columns = GridCells.Fixed(3),
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(padding),
+                    contentPadding = PaddingValues(8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    items(sortedSources) { (path, sourceData) ->
+                        FolderTile(
+                            sourceData = sourceData,
+                            category = category,
+                            isSelected = selectedFolders.contains(path),
+                            onLongPress = {
+                                if (!isSelectionMode) {
+                                    viewModel.clearSelection()
+                                }
+                                selectedFolders = selectedFolders + path
+                            },
+                            onClick = {
+                                if (isSelectionMode || selectedFolders.isNotEmpty()) {
+                                    selectedFolders = if (selectedFolders.contains(path)) {
+                                        selectedFolders - path
+                                    } else {
+                                        selectedFolders + path
+                                    }
+                                } else {
+                                    currentFolderPath = path
+                                    selectedFolders = emptySet()
+                                    viewModel.clearSelection()
+                                }
+                            }
+                        )
+                    }
                 }
             }
         }
     }
-    
+
     // Sort menu
     if (showSortMenu) {
         DropdownMenu(
@@ -246,26 +354,43 @@ fun CategoryDetailScreen(
     
     // Delete dialog
     if (showDeleteDialog) {
+        val deleteCount = if (currentFolderData != null) selectedFiles.size else selectedFolders.size
+        val deleteTitle = if (currentFolderData != null) "Delete Files" else "Delete Folders"
         AlertDialog(
             onDismissRequest = { showDeleteDialog = false },
-            title = { Text("Delete Folders") },
-            text = { Text("Delete ${selectedFolders.size} folder(s)? This action cannot be undone.") },
+            title = { Text(deleteTitle) },
+            text = {
+                if (currentFolderData != null) {
+                    Text("Delete $deleteCount file(s)? This action cannot be undone.")
+                } else {
+                    Text("Delete $deleteCount folder(s)? This action cannot be undone.")
+                }
+            },
             confirmButton = {
                 TextButton(
                     onClick = {
-                        val filesToDelete = selectedFolders.flatMap { path ->
-                            filteredSources[path]?.files ?: emptyList()
+                        val success = if (currentFolderData != null) {
+                            viewModel.deleteSelectedFiles()
+                        } else {
+                            val filesToDelete = selectedFolders.flatMap { path ->
+                                filteredSources[path]?.files ?: emptyList()
+                            }
+                            FileUtils.deleteFiles(filesToDelete).also { result ->
+                                if (result) {
+                                    viewModel.clearSelection()
+                                    selectedFolders = emptySet()
+                                    viewModel.scanFiles()
+                                }
+                            }
                         }
-                        val success = FileUtils.deleteFiles(filesToDelete)
                         showDeleteDialog = false
-                        if (success) {
-                            viewModel.clearSelection()
-                            selectedFolders = emptySet()
-                            viewModel.scanFiles()
-                        }
                         Toast.makeText(
                             context,
-                            if (success) "Folders deleted" else "Failed to delete some files",
+                            if (success) {
+                                if (currentFolderData != null) "Files deleted" else "Folders deleted"
+                            } else {
+                                "Failed to delete some files"
+                            },
                             Toast.LENGTH_SHORT
                         ).show()
                     }
@@ -283,13 +408,17 @@ fun CategoryDetailScreen(
     
     // Move/Copy dialog
     if (showMoveCopyDialog) {
+        val filesForAction = if (currentFolderData != null) {
+            viewModel.getSelectedFileItems()
+        } else {
+            selectedFolders.flatMap { path ->
+                filteredSources[path]?.files ?: emptyList()
+            }
+        }
         MoveCopyDialog(
             onDismiss = { showMoveCopyDialog = false },
             onMove = { destination ->
-                val filesToMove = selectedFolders.flatMap { path ->
-                    filteredSources[path]?.files ?: emptyList()
-                }
-                val success = FileUtils.moveFiles(filesToMove, destination)
+                val success = FileUtils.moveFiles(filesForAction, destination)
                 Toast.makeText(
                     context,
                     if (success) "Files moved" else "Failed to move some files",
@@ -303,10 +432,7 @@ fun CategoryDetailScreen(
                 }
             },
             onCopy = { destination ->
-                val filesToCopy = selectedFolders.flatMap { path ->
-                    filteredSources[path]?.files ?: emptyList()
-                }
-                val success = FileUtils.copyFiles(filesToCopy, destination)
+                val success = FileUtils.copyFiles(filesForAction, destination)
                 Toast.makeText(
                     context,
                     if (success) "Files copied" else "Failed to copy some files",
@@ -321,6 +447,161 @@ fun CategoryDetailScreen(
             }
         )
     }
+
+    if (showRenameDialog) {
+        val selectedFileName = viewModel.getSelectedFileItems().firstOrNull()?.name ?: ""
+        RenameFileDialog(
+            initialName = selectedFileName,
+            onDismiss = { showRenameDialog = false },
+            onConfirm = { newName ->
+                val success = viewModel.renameSelectedFile(newName)
+                Toast.makeText(
+                    context,
+                    if (success) "File renamed" else "Failed to rename file",
+                    Toast.LENGTH_SHORT
+                ).show()
+                showRenameDialog = false
+            }
+        )
+    }
+}
+
+@Composable
+fun FileTile(
+    fileItem: FileItem,
+    category: FileCategory,
+    isSelected: Boolean,
+    onLongPress: () -> Unit,
+    onClick: () -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .aspectRatio(0.7f)
+            .pointerInput(Unit) {
+                detectTapGestures(
+                    onLongPress = { onLongPress() },
+                    onTap = { onClick() }
+                )
+            },
+        shape = RoundedCornerShape(12.dp),
+        elevation = CardDefaults.cardElevation(
+            defaultElevation = if (isSelected) 8.dp else 2.dp
+        ),
+        colors = CardDefaults.cardColors(
+            containerColor = if (isSelected)
+                MaterialTheme.colorScheme.primaryContainer
+            else
+                MaterialTheme.colorScheme.surface
+        )
+    ) {
+        Column(
+            modifier = Modifier.fillMaxSize()
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+                    .clip(RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant)
+            ) {
+                if (category == FileCategory.IMAGES || category == FileCategory.VIDEOS) {
+                    Image(
+                        painter = rememberAsyncImagePainter(
+                            ImageRequest.Builder(LocalContext.current)
+                                .data(File(fileItem.path))
+                                .crossfade(true)
+                                .build()
+                        ),
+                        contentDescription = fileItem.name,
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
+                    )
+                } else {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(MaterialTheme.colorScheme.surfaceVariant),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = getIconForCategory(category),
+                            contentDescription = null,
+                            modifier = Modifier.size(36.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+
+                if (isSelected) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.2f))
+                    )
+                }
+            }
+
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 10.dp, vertical = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                Text(
+                    text = fileItem.name,
+                    style = MaterialTheme.typography.bodyMedium,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    text = FileUtils.formatFileSize(fileItem.size),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun RenameFileDialog(
+    initialName: String,
+    onDismiss: () -> Unit,
+    onConfirm: (String) -> Unit
+) {
+    var fileName by remember(initialName) { mutableStateOf(initialName) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Rename File") },
+        text = {
+            Column {
+                Text("Enter a new name for the file:")
+                Spacer(modifier = Modifier.height(12.dp))
+                OutlinedTextField(
+                    value = fileName,
+                    onValueChange = { fileName = it },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = { onConfirm(fileName) },
+                enabled = fileName.isNotBlank()
+            ) {
+                Text("Rename")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        }
+    )
 }
 
 @Composable

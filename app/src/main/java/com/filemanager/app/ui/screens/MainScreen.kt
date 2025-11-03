@@ -92,7 +92,7 @@ fun MainScreen(viewModel: FileManagerViewModel) {
                     entries = storageEntries,
                     isLoading = isStorageLoading,
                     onNavigateUp = { viewModel.handleStorageBack() },
-                    onFolderClick = { entry -> viewModel.navigateIntoStorage(entry.path) },
+                    onFolderClick = { entry -> viewModel.enterStorageDirectory(entry.path) },
                     onClose = { viewModel.dismissStorageBrowser() },
                     modifier = Modifier.padding(padding)
                 )

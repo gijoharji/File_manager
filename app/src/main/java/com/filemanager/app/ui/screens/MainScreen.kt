@@ -42,7 +42,7 @@ fun MainScreen(viewModel: FileManagerViewModel) {
     }
 
     BackHandler(enabled = currentStoragePath != null) {
-        viewModel.handleStorageBack()
+        viewModel.navigateStorageBack()
     }
 
     BackHandler(enabled = selectedCategory == null && currentStoragePath == null) {
@@ -91,9 +91,9 @@ fun MainScreen(viewModel: FileManagerViewModel) {
                     navigationStack = storageStack,
                     entries = storageEntries,
                     isLoading = isStorageLoading,
-                    onNavigateUp = { viewModel.handleStorageBack() },
-                    onFolderClick = { entry -> viewModel.enterStorageDirectory(entry.path) },
-                    onClose = { viewModel.dismissStorageBrowser() },
+                    onNavigateUp = { viewModel.navigateStorageBack() },
+                    onFolderClick = { entry -> viewModel.navigateIntoStorage(entry.path) },
+                    onClose = { viewModel.closeStorageBrowser() },
                     modifier = Modifier.padding(padding)
                 )
             }
@@ -108,7 +108,7 @@ fun MainScreen(viewModel: FileManagerViewModel) {
                 HomeGridScreen(
                     categories = categories,
                     onCategoryClick = { viewModel.selectCategory(it) },
-                    onStorageClick = { path -> viewModel.openStorage(path) },
+                    onStorageClick = { path -> viewModel.showStorageRoot(path) },
                     modifier = Modifier.padding(padding)
                 )
             }

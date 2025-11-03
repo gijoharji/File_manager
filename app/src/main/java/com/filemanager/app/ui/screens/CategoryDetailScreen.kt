@@ -325,7 +325,7 @@ fun CategoryDetailScreen(
                                 if (isSelectionMode) {
                                     viewModel.toggleFileSelection(fileItem.path)
                                 } else {
-                                    viewModel.toggleFileSelection(fileItem.path)
+                                    (context as? MainActivity)?.openFileWith(fileItem.path)
                                 }
                             }
                         )

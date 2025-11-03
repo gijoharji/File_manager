@@ -28,10 +28,7 @@ fun MainScreen(viewModel: FileManagerViewModel) {
     val categories by viewModel.categories.collectAsStateWithLifecycle()
     val selectedCategory by viewModel.selectedCategory.collectAsStateWithLifecycle()
     val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
-    val currentStoragePath by viewModel.currentStoragePath.collectAsStateWithLifecycle()
-    val storageEntries by viewModel.storageEntries.collectAsStateWithLifecycle()
-    val isStorageLoading by viewModel.isStorageLoading.collectAsStateWithLifecycle()
-    val storageStack by viewModel.storageNavigationStack.collectAsStateWithLifecycle()
+    val storageState by viewModel.storageBrowserState.collectAsStateWithLifecycle()
     val context = LocalContext.current
     var showExitDialog by remember { mutableStateOf(false) }
     var showMenu by remember { mutableStateOf(false) }
@@ -41,11 +38,11 @@ fun MainScreen(viewModel: FileManagerViewModel) {
         viewModel.clearCategorySelection()
     }
 
-    BackHandler(enabled = currentStoragePath != null) {
+    BackHandler(enabled = storageState.currentPath != null) {
         viewModel.navigateStorageBack()
     }
 
-    BackHandler(enabled = selectedCategory == null && currentStoragePath == null) {
+    BackHandler(enabled = selectedCategory == null && storageState.currentPath == null) {
         showExitDialog = true
     }
     
@@ -85,12 +82,12 @@ fun MainScreen(viewModel: FileManagerViewModel) {
                     CircularProgressIndicator()
                 }
             }
-            currentStoragePath != null -> {
+            storageState.currentPath != null -> {
                 StorageBrowserScreen(
-                    currentPath = currentStoragePath!!,
-                    navigationStack = storageStack,
-                    entries = storageEntries,
-                    isLoading = isStorageLoading,
+                    currentPath = storageState.currentPath!!,
+                    navigationStack = storageState.stack,
+                    entries = storageState.entries,
+                    isLoading = storageState.isLoading,
                     onNavigateUp = { viewModel.navigateStorageBack() },
                     onFolderClick = { entry -> viewModel.navigateIntoStorage(entry.path) },
                     onClose = { viewModel.closeStorageBrowser() },

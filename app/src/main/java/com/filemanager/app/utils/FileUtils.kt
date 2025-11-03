@@ -1,5 +1,6 @@
 package com.filemanager.app.utils
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.os.Build
 import android.os.Environment
@@ -55,6 +56,11 @@ object FileUtils {
         // Scan storage
         scanDirectoryRecursive(storageRoot, categoryMap)
 
+        // Some document locations (like Android/media) may be visible only via MediaStore APIs.
+        // Replace the scanned document bucket with MediaStore PDFs so we rely on the correct
+        // MIME type (application/pdf) while debugging missing document counts.
+        categoryMap[FileCategory.DOCUMENTS] = loadDocumentsFromMediaStore(context)
+
         // Build result
         categoryMap.mapValues { (category, sourceMap) ->
             val totalFiles = sourceMap.values.flatten()
@@ -98,7 +104,7 @@ object FileUtils {
                 if (file.isHidden) continue
 
                 if (file.isFile) {
-                    val category = FileCategory.fromFile(file)
+                    val category = classifyFile(file)
                     if (category != null) {
                         val sourcePath = getSourcePath(file)
                         categoryMap[category]?.getOrPut(sourcePath) { mutableListOf() }?.add(
@@ -112,19 +118,105 @@ object FileUtils {
                         )
                     }
                 } else if (file.isDirectory) {
-                    // Skip some system directories
-                    if (file.name.startsWith(".") || 
-                        file.name == "Android" ||
-                        file.name == "Lost.Dir" ||
-                        file.name == "LOST.DIR") {
+                    // Skip hidden and system cache directories
+                    if (file.name.startsWith(".") ||
+                        file.name.equals("Lost.Dir", ignoreCase = true)) {
                         continue
                     }
+
+                    // Avoid scanning restricted Android directories while keeping Android/media
+                    val parentName = file.parentFile?.name?.lowercase(Locale.getDefault())
+                    val nameLower = file.name.lowercase(Locale.getDefault())
+                    val isAndroidChild = parentName == "android"
+                    if (isAndroidChild && (nameLower == "data" || nameLower == "obb")) {
+                        continue
+                    }
+
                     scanDirectoryRecursive(file, categoryMap)
                 }
             }
         } catch (e: Exception) {
             // Skip directories we can't access
         }
+    }
+
+    @SuppressLint("Range")
+    private fun loadDocumentsFromMediaStore(context: Context): MutableMap<String, MutableList<FileItem>> {
+        val resolver = context.contentResolver
+        val projection = arrayOf(
+            MediaStore.Files.FileColumns.DATA,
+            MediaStore.Files.FileColumns.DISPLAY_NAME,
+            MediaStore.Files.FileColumns.SIZE,
+            MediaStore.Files.FileColumns.DATE_MODIFIED
+        )
+        val selection = "${MediaStore.Files.FileColumns.MIME_TYPE} = ?"
+        val selectionArgs = arrayOf("application/pdf")
+
+        val cursor = try {
+            resolver.query(
+                MediaStore.Files.getContentUri(MediaStore.VOLUME_EXTERNAL),
+                projection,
+                selection,
+                selectionArgs,
+                "${MediaStore.Files.FileColumns.DATE_MODIFIED} DESC"
+            )
+        } catch (e: Exception) {
+            null
+        } ?: return mutableMapOf()
+
+        val storageRootPath = Environment.getExternalStorageDirectory().absolutePath
+        val documents = mutableMapOf<String, MutableList<FileItem>>()
+
+        cursor.use { c ->
+            val dataIndex = c.getColumnIndex(MediaStore.Files.FileColumns.DATA)
+            val nameIndex = c.getColumnIndex(MediaStore.Files.FileColumns.DISPLAY_NAME)
+            val sizeIndex = c.getColumnIndex(MediaStore.Files.FileColumns.SIZE)
+            val dateIndex = c.getColumnIndex(MediaStore.Files.FileColumns.DATE_MODIFIED)
+
+            while (c.moveToNext()) {
+                val path = if (dataIndex != -1) c.getString(dataIndex) else null
+                if (path.isNullOrBlank()) continue
+
+                val file = File(path)
+                if (!file.exists()) continue
+
+                val name = when {
+                    nameIndex != -1 -> c.getString(nameIndex)
+                    else -> file.name
+                }?.takeIf { it.isNotBlank() } ?: continue
+
+                val size = when {
+                    sizeIndex != -1 -> c.getLong(sizeIndex)
+                    else -> file.length()
+                }
+
+                val modifiedSeconds = if (dateIndex != -1) c.getLong(dateIndex) else null
+                val modified = modifiedSeconds?.let { it * 1000 } ?: file.lastModified()
+
+                val sourcePath = file.parent ?: storageRootPath
+                val bucket = documents.getOrPut(sourcePath) { mutableListOf() }
+                bucket.add(
+                    FileItem(
+                        path = path,
+                        name = name,
+                        size = size,
+                        dateModified = modified,
+                        category = FileCategory.DOCUMENTS
+                    )
+                )
+            }
+        }
+
+        return documents
+    }
+
+    private fun classifyFile(file: File): FileCategory? {
+        val category = FileCategory.fromFile(file)
+        if (category != null) {
+            return category
+        }
+
+        return null
     }
     private fun getSourcePath(file: File): String {
         val absolutePath = file.absolutePath

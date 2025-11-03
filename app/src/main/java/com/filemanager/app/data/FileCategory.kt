@@ -1,6 +1,7 @@
 package com.filemanager.app.data
 
 import java.io.File
+import java.util.Locale
 
 enum class FileCategory(val displayName: String, val extensions: Set<String>) {
     IMAGES(
@@ -17,35 +18,7 @@ enum class FileCategory(val displayName: String, val extensions: Set<String>) {
     ),
     DOCUMENTS(
         "Documents",
-        setOf(
-            "pdf",
-            "doc",
-            "docx",
-            "docm",
-            "dot",
-            "dotx",
-            "dotm",
-            "xls",
-            "xlsx",
-            "xlsm",
-            "xlsb",
-            "ppt",
-            "pptx",
-            "pptm",
-            "pps",
-            "ppsx",
-            "ppsm",
-            "pot",
-            "potx",
-            "potm",
-            "txt",
-            "rtf",
-            "odt",
-            "ods",
-            "odp",
-            "csv",
-            "xps"
-        )
+        setOf("pdf")
     ),
     APKS(
         "APKs",
@@ -57,8 +30,12 @@ enum class FileCategory(val displayName: String, val extensions: Set<String>) {
     );
 
     fun matches(file: File): Boolean {
-        val extension = file.extension.lowercase()
-        return extensions.contains(extension)
+        val extension = file.extension.lowercase(Locale.getDefault())
+        return if (this == DOCUMENTS) {
+            extension == "pdf"
+        } else {
+            extensions.contains(extension)
+        }
     }
 
     companion object {

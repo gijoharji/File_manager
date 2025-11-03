@@ -17,25 +17,17 @@ import java.text.SimpleDateFormat
 import java.util.*
 
 object FileUtils {
-    
-    private val commonSources = mapOf(
-        "Downloads" to listOf(
-            Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
-        ),
-        "WhatsApp" to listOf(
-            File(Environment.getExternalStorageDirectory(), "WhatsApp/Media"),
-            File(Environment.getExternalStorageDirectory(), "Android/media/com.whatsapp")
-        ),
-        "Screenshots" to listOf(
-            Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES),
-            File(Environment.getExternalStorageDirectory(), "Pictures/Screenshots"),
-            File(Environment.getExternalStorageDirectory(), "DCIM/Screenshots")
-        ),
-        "Camera" to listOf(
-            Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM),
-            File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM), "Camera")
-        )
-    )
+
+    private val groupingRoots = listOf(
+        Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM),
+        Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES),
+        Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
+        Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS),
+        Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MOVIES),
+        Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MUSIC),
+        File(Environment.getExternalStorageDirectory(), "WhatsApp/Media"),
+        File(Environment.getExternalStorageDirectory(), "Android/media/com.whatsapp")
+    ).filter { it.exists() || it.parentFile?.exists() == true }
 
     fun formatFileSize(bytes: Long): String {
         if (bytes < 1024) return "$bytes B"
@@ -65,23 +57,26 @@ object FileUtils {
         categoryMap.mapValues { (category, sourceMap) ->
             val totalFiles = sourceMap.values.flatten()
             val totalSize = totalFiles.sumOf { it.size }
-            
-            val sources = sourceMap.mapValues { (path, files) ->
-                val folderName = getFolderDisplayName(path)
-                SourceFolderData(
+
+            val sourceEntries = sourceMap.map { (path, files) ->
+                path to SourceFolderData(
                     path = path,
-                    name = folderName,
+                    name = getFolderDisplayName(path),
                     itemCount = files.size,
                     totalSize = files.sumOf { it.size },
                     files = files.sortedByDescending { it.dateModified }
                 )
+            }.sortedWith(compareBy({ it.second.name.lowercase(Locale.getDefault()) }, { it.first }))
+
+            val sortedSources = LinkedHashMap<String, SourceFolderData>().apply {
+                sourceEntries.forEach { (path, data) -> put(path, data) }
             }
 
             CategoryData(
                 category = category,
                 itemCount = totalFiles.size,
                 totalSize = totalSize,
-                sources = sources.toSortedMap(compareBy { it })
+                sources = sortedSources
             )
         }
     }
@@ -135,14 +130,27 @@ object FileUtils {
         val storageRoot = Environment.getExternalStorageDirectory().absolutePath
         
         // Check common sources
-        for ((name, paths) in commonSources) {
-            for (sourcePath in paths) {
-                if (absolutePath.startsWith(sourcePath.absolutePath)) {
-                    return sourcePath.absolutePath
+        groupingRoots.forEach { root ->
+            val rootPath = root.absolutePath
+            if (absolutePath.startsWith(rootPath)) {
+                val parent = file.parentFile ?: return rootPath
+                if (parent.absolutePath == rootPath) {
+                    return rootPath
+                }
+
+                val relativeParent = parent.absolutePath
+                    .removePrefix(rootPath)
+                    .trim(File.separatorChar)
+                val firstSegment = relativeParent.substringBefore(File.separatorChar, "")
+
+                return if (firstSegment.isNotEmpty()) {
+                    File(rootPath, firstSegment).absolutePath
+                } else {
+                    parent.absolutePath
                 }
             }
         }
-        
+
         // Otherwise, use parent directory as source
         val parent = file.parentFile ?: return storageRoot
         return parent.absolutePath
@@ -151,21 +159,18 @@ object FileUtils {
     private fun getFolderDisplayName(path: String): String {
         val file = File(path)
         val name = file.name
-        
-        // Check if it's a known common source
-        for ((displayName, paths) in commonSources) {
-            if (paths.any { it.absolutePath == path }) {
-                return displayName
-            }
-        }
-        
-        // Use folder name or parent folder name
-        if (name.isNotEmpty() && name != "storage" && name != "emulated" && name != "0") {
+
+        if (name.isNotBlank() && name !in setOf("storage", "emulated", "0")) {
             return name
         }
-        
+
         val parent = file.parentFile
-        return parent?.name ?: "Other"
+        val parentName = parent?.name
+        if (!parentName.isNullOrBlank() && parentName !in setOf("storage", "emulated", "0")) {
+            return parentName
+        }
+
+        return "Other"
     }
 
     fun getStorageVolumes(context: Context): List<StorageVolume> {

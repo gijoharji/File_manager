@@ -23,7 +23,7 @@ class FileManagerViewModel(application: Application) : AndroidViewModel(applicat
 
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
-
+    
     private val _selectedCategory = MutableStateFlow<FileCategory?>(null)
     val selectedCategory: StateFlow<FileCategory?> = _selectedCategory.asStateFlow()
 
@@ -33,7 +33,6 @@ class FileManagerViewModel(application: Application) : AndroidViewModel(applicat
     private val _isSelectionMode = MutableStateFlow(false)
     val isSelectionMode: StateFlow<Boolean> = _isSelectionMode.asStateFlow()
 
-    // ---------- Storage browser (single source of truth) ----------
     private val _storageBrowserState = MutableStateFlow(StorageBrowserState())
     val storageBrowserState: StateFlow<StorageBrowserState> = _storageBrowserState.asStateFlow()
 
@@ -64,6 +63,89 @@ class FileManagerViewModel(application: Application) : AndroidViewModel(applicat
     fun clearCategorySelection() {
         _selectedCategory.value = null
         clearSelection()
+    }
+
+    fun openStorageRoot(path: String) {
+        clearSelection()
+        _selectedCategory.value = null
+        setStorageContext(listOf(path))
+    }
+
+    fun openStorageFolder(path: String) {
+        val currentStack = _storageBrowserState.value.stack
+        if (currentStack.isNotEmpty() && currentStack.last() == path) {
+            return
+        }
+
+        setStorageContext(currentStack + path)
+    }
+
+    fun navigateStorageBack(): Boolean {
+        val stack = _storageBrowserState.value.stack
+        return when {
+            stack.size > 1 -> {
+                setStorageContext(stack.dropLast(1))
+                true
+            }
+
+            stack.isNotEmpty() -> {
+                closeStorageBrowser()
+                true
+            }
+
+            else -> false
+        }
+    }
+
+    fun closeStorageBrowser() {
+        clearSelection()
+        setStorageContext(emptyList())
+    }
+
+    private fun setStorageContext(stack: List<String>) {
+        if (_storageBrowserState.value.stack == stack) {
+            return
+        }
+
+        val newPath = stack.lastOrNull()
+        _storageBrowserState.update { state ->
+            when (newPath) {
+                null -> StorageBrowserState()
+                else -> state.copy(
+                    stack = stack,
+                    currentPath = newPath,
+                    entries = emptyList(),
+                    isLoading = true
+                )
+            }
+        }
+
+        newPath?.let { loadStorageEntries(it) }
+    }
+
+    private fun loadStorageEntries(path: String) {
+        viewModelScope.launch {
+            _storageBrowserState.update { state ->
+                if (state.currentPath == path) state.copy(isLoading = true) else state
+            }
+            try {
+                val appContext = getApplication<Application>()
+                val entries = withContext(Dispatchers.IO) {
+                    FileUtils.listDirectoryEntries(appContext, path)
+                }
+                _storageBrowserState.update { state ->
+                    if (state.currentPath == path) state.copy(entries = entries, isLoading = false) else state
+                }
+            } catch (e: Exception) {
+                _storageBrowserState.update { state ->
+                    if (state.currentPath == path) state.copy(entries = emptyList(), isLoading = false) else state
+                }
+            } finally {
+                _storageBrowserState.update { state ->
+                    if (state.currentPath == path) state.copy(isLoading = false) else state
+                }
+            }
+        }
     }
 
     // ===== Storage navigation (single, deduped implementation) =====

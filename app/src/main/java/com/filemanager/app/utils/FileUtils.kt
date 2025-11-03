@@ -6,6 +6,7 @@ import android.os.Environment
 import android.os.StatFs
 import android.os.storage.StorageManager
 import android.os.storage.StorageVolume
+import android.provider.MediaStore
 import com.filemanager.app.data.CategoryData
 import com.filemanager.app.data.FileCategory
 import com.filemanager.app.data.FileItem
@@ -312,7 +313,7 @@ object FileUtils {
         }
     }
 
-    fun listDirectoryEntries(path: String): List<StorageEntry> {
+    fun listDirectoryEntries(context: Context, path: String): List<StorageEntry> {
         val directory = File(path)
         if (!directory.exists() || !directory.isDirectory || !directory.canRead()) {
             return emptyList()
@@ -325,20 +326,10 @@ object FileUtils {
         }?.filterNot { it.isHidden } ?: return emptyList()
 
         return children.map { file ->
-            val itemCount = if (file.isDirectory) {
-                try {
-                    file.listFiles()?.count { !it.isHidden } ?: 0
-                } catch (e: Exception) {
-                    0
-                }
+            val (itemCount, size) = if (file.isDirectory) {
+                getDirectoryMetrics(context, file)
             } else {
-                0
-            }
-
-            val size = if (file.isDirectory) {
-                calculateDirectorySize(file)
-            } else {
-                file.length()
+                Pair(0, file.length())
             }
 
             StorageEntry(
@@ -353,6 +344,22 @@ object FileUtils {
             compareByDescending<StorageEntry> { it.isDirectory }
                 .thenBy { it.name.lowercase(Locale.getDefault()) }
         )
+    }
+
+    private fun getDirectoryMetrics(context: Context, directory: File): Pair<Int, Long> {
+        val visibleChildren = try {
+            directory.listFiles()?.filterNot { it.isHidden }
+        } catch (e: Exception) {
+            null
+        }
+
+        if (visibleChildren != null) {
+            val totalSize = calculateDirectorySize(directory)
+            return Pair(visibleChildren.size, totalSize)
+        }
+
+        val fallback = queryDirectoryViaMediaStore(context, directory)
+        return fallback ?: Pair(0, 0L)
     }
 
     private fun calculateDirectorySize(directory: File): Long {
@@ -395,6 +402,44 @@ object FileUtils {
         }
 
         return totalSize
+    }
+
+    private fun queryDirectoryViaMediaStore(context: Context, directory: File): Pair<Int, Long>? {
+        val storageRoot = Environment.getExternalStorageDirectory()
+        val absolutePath = directory.absolutePath
+        val relativePath = absolutePath
+            .removePrefix(storageRoot.absolutePath)
+            .trimStart(File.separatorChar)
+            .replace(File.separatorChar, '/')
+
+        if (relativePath.isEmpty()) {
+            return null
+        }
+
+        val resolver = context.contentResolver
+        val uri = MediaStore.Files.getContentUri("external")
+        val projection = arrayOf(MediaStore.MediaColumns.SIZE)
+
+        val (selection, selectionArgs) = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            val targetPath = if (relativePath.endsWith('/')) relativePath else "$relativePath/"
+            "${MediaStore.MediaColumns.RELATIVE_PATH} LIKE ?" to arrayOf("$targetPath%")
+        } else {
+            val directoryPrefix = absolutePath + File.separator
+            "${MediaStore.MediaColumns.DATA} LIKE ?" to arrayOf("$directoryPrefix%")
+        }
+
+        var totalSize = 0L
+        var itemCount = 0
+
+        resolver.query(uri, projection, selection, selectionArgs, null)?.use { cursor ->
+            val sizeIndex = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.SIZE)
+            while (cursor.moveToNext()) {
+                totalSize += cursor.getLong(sizeIndex)
+                itemCount++
+            }
+        } ?: return null
+
+        return Pair(itemCount, totalSize)
     }
 }
 

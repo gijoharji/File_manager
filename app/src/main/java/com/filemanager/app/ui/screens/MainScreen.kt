@@ -89,8 +89,7 @@ fun MainScreen(viewModel: FileManagerViewModel) {
                     entries = storageState.entries,
                     isLoading = storageState.isLoading,
                     onNavigateUp = { viewModel.navigateStorageBack() },
-                    onFolderClick = { entry -> viewModel.openStorage(entry.path) },
-
+                    onFolderClick = { entry -> viewModel.openStorageFolder(entry.path) },
                     onClose = { viewModel.closeStorageBrowser() },
                     modifier = Modifier.padding(padding)
                 )
@@ -106,7 +105,7 @@ fun MainScreen(viewModel: FileManagerViewModel) {
                 HomeGridScreen(
                     categories = categories,
                     onCategoryClick = { viewModel.selectCategory(it) },
-                    onStorageClick = { path -> viewModel.openStorage(path) },
+                    onStorageClick = { path -> viewModel.openStorageRoot(path) },
                     modifier = Modifier.padding(padding)
                 )
             }

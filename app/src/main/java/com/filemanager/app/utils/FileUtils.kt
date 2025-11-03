@@ -1,5 +1,6 @@
 package com.filemanager.app.utils
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.os.Build
 import android.os.Environment
@@ -54,6 +55,11 @@ object FileUtils {
 
         // Scan storage
         scanDirectoryRecursive(storageRoot, categoryMap)
+
+        // Some document locations (like Android/media) may be visible only via MediaStore APIs.
+        // Augment our scan with anything MediaStore exposes for the Documents bucket so the
+        // category reflects all accessible files for the user.
+        collectDocumentsFromMediaStore(context, categoryMap)
 
         // Build result
         categoryMap.mapValues { (category, sourceMap) ->
@@ -131,6 +137,84 @@ object FileUtils {
             }
         } catch (e: Exception) {
             // Skip directories we can't access
+        }
+    }
+
+    @SuppressLint("Range")
+    private fun collectDocumentsFromMediaStore(
+        context: Context,
+        categoryMap: MutableMap<FileCategory, MutableMap<String, MutableList<FileItem>>>
+    ) {
+        val documentsBucket = categoryMap[FileCategory.DOCUMENTS] ?: return
+        val knownPaths = documentsBucket.values
+            .flatMapTo(mutableSetOf()) { source -> source.map(FileItem::path) }
+
+        val resolver = context.contentResolver
+        val projection = arrayOf(
+            MediaStore.Files.FileColumns.DISPLAY_NAME,
+            MediaStore.Files.FileColumns.SIZE,
+            MediaStore.Files.FileColumns.DATE_MODIFIED,
+            MediaStore.Files.FileColumns.DATA,
+            MediaStore.Files.FileColumns.RELATIVE_PATH
+        )
+        val selection = "${MediaStore.Files.FileColumns.MEDIA_TYPE} = ?"
+        val selectionArgs = arrayOf(MediaStore.Files.FileColumns.MEDIA_TYPE_NONE.toString())
+
+        val cursor = try {
+            resolver.query(
+                MediaStore.Files.getContentUri(MediaStore.VOLUME_EXTERNAL),
+                projection,
+                selection,
+                selectionArgs,
+                null
+            )
+        } catch (e: Exception) {
+            null
+        } ?: return
+
+        cursor.use { c ->
+            val storageRoot = Environment.getExternalStorageDirectory()
+            val relativeIndex = c.getColumnIndex(MediaStore.Files.FileColumns.RELATIVE_PATH)
+            val dataIndex = c.getColumnIndex(MediaStore.Files.FileColumns.DATA)
+            val nameIndex = c.getColumnIndex(MediaStore.Files.FileColumns.DISPLAY_NAME)
+            val sizeIndex = c.getColumnIndex(MediaStore.Files.FileColumns.SIZE)
+            val dateIndex = c.getColumnIndex(MediaStore.Files.FileColumns.DATE_MODIFIED)
+
+            while (c.moveToNext()) {
+                val displayName = if (nameIndex != -1) c.getString(nameIndex) else null
+                if (displayName.isNullOrBlank()) continue
+
+                val absolutePath = when {
+                    dataIndex != -1 -> c.getString(dataIndex)
+                    relativeIndex != -1 -> {
+                        val relative = c.getString(relativeIndex) ?: continue
+                        File(storageRoot, relative).resolve(displayName).absolutePath
+                    }
+                    else -> null
+                } ?: continue
+
+                if (!knownPaths.add(absolutePath)) continue
+
+                val file = File(absolutePath)
+                if (!file.exists()) continue
+
+                val category = FileCategory.fromFile(file) ?: continue
+                if (category != FileCategory.DOCUMENTS) continue
+
+                val size = if (sizeIndex != -1) c.getLong(sizeIndex) else file.length()
+                val modified = if (dateIndex != -1) c.getLong(dateIndex) * 1000 else file.lastModified()
+                val sourcePath = getSourcePath(file)
+
+                documentsBucket.getOrPut(sourcePath) { mutableListOf() }.add(
+                    FileItem(
+                        path = file.absolutePath,
+                        name = file.name,
+                        size = size,
+                        dateModified = modified,
+                        category = FileCategory.DOCUMENTS
+                    )
+                )
+            }
         }
     }
     private fun getSourcePath(file: File): String {

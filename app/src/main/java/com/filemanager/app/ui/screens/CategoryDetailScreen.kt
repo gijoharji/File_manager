@@ -6,7 +6,19 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
@@ -21,12 +33,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.google.accompanist.swiperefresh.SwipeRefresh
 import com.google.accompanist.swiperefresh.rememberSwipeRefreshState
@@ -39,6 +52,8 @@ import com.filemanager.app.ui.viewmodel.FileManagerViewModel
 import com.filemanager.app.utils.FileUtils
 import java.io.File
 import java.util.Locale
+
+private const val BottomBarDisabledAlpha = 0.38f
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -60,6 +75,8 @@ fun CategoryDetailScreen(
     var showDeleteDialog by remember { mutableStateOf(false) }
     var showRenameDialog by remember { mutableStateOf(false) }
     var showSortMenu by remember { mutableStateOf(false) }
+    var showFileMoreMenu by remember { mutableStateOf(false) }
+    var showFolderMoreMenu by remember { mutableStateOf(false) }
     var searchQuery by remember { mutableStateOf("") }
 
     val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
@@ -151,98 +168,128 @@ fun CategoryDetailScreen(
             if (currentFolderData != null && isSelectionMode) {
                 BottomAppBar(
                     containerColor = MaterialTheme.colorScheme.surface,
-                    modifier = Modifier.height(64.dp)
+                    tonalElevation = 8.dp
                 ) {
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceEvenly,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .navigationBarsPadding(),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        TextButton(onClick = { showMoveCopyDialog = true }, enabled = selectedFiles.isNotEmpty()) {
-                            Icon(Icons.Default.ContentCopy, contentDescription = "Copy")
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text("Copy")
-                        }
-                        TextButton(onClick = { showMoveCopyDialog = true }, enabled = selectedFiles.isNotEmpty()) {
-                            Icon(Icons.Default.DriveFileMove, contentDescription = "Move")
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text("Move")
-                        }
-                        TextButton(
-                            onClick = { showRenameDialog = true },
-                            enabled = selectedFiles.size == 1
-                        ) {
-                            Icon(Icons.Default.Edit, contentDescription = "Rename")
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text("Rename")
-                        }
-                        TextButton(
-                            onClick = { showDeleteDialog = true },
+                        BottomBarActionButton(
+                            modifier = Modifier.weight(1f),
+                            text = "Copy",
+                            icon = Icons.Default.ContentCopy,
                             enabled = selectedFiles.isNotEmpty(),
-                            colors = ButtonDefaults.textButtonColors(
-                                contentColor = MaterialTheme.colorScheme.error
-                            )
-                        ) {
-                            Icon(Icons.Default.Delete, contentDescription = "Delete")
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text("Delete")
-                        }
-                        TextButton(onClick = {
-                            Toast.makeText(context, "More options coming soon", Toast.LENGTH_SHORT).show()
-                        }) {
-                            Icon(Icons.Default.MoreVert, contentDescription = "More")
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text("More")
-                        }
+                            onClick = { showMoveCopyDialog = true }
+                        )
+                        BottomBarActionButton(
+                            modifier = Modifier.weight(1f),
+                            text = "Move",
+                            icon = Icons.Default.DriveFileMove,
+                            enabled = selectedFiles.isNotEmpty(),
+                            onClick = { showMoveCopyDialog = true }
+                        )
+                        BottomBarActionButton(
+                            modifier = Modifier.weight(1f),
+                            text = "Rename",
+                            icon = Icons.Default.Edit,
+                            enabled = selectedFiles.size == 1,
+                            onClick = { showRenameDialog = true }
+                        )
+                        BottomBarActionButton(
+                            modifier = Modifier.weight(1f),
+                            text = "Delete",
+                            icon = Icons.Default.Delete,
+                            enabled = selectedFiles.isNotEmpty(),
+                            contentColor = MaterialTheme.colorScheme.error,
+                            onClick = { showDeleteDialog = true }
+                        )
+                        BottomBarMoreAction(
+                            modifier = Modifier.weight(1f),
+                            enabled = selectedFiles.isNotEmpty(),
+                            expanded = showFileMoreMenu,
+                            onExpandedChange = { showFileMoreMenu = it },
+                            onShare = {
+                                showFileMoreMenu = false
+                                if (selectedFiles.isNotEmpty()) {
+                                    (context as? MainActivity)?.shareFiles(selectedFiles.toList())
+                                    viewModel.clearSelection()
+                                }
+                            },
+                            onProperties = {
+                                showFileMoreMenu = false
+                                Toast.makeText(
+                                    context,
+                                    "Properties coming soon",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                            }
+                        )
                     }
                 }
             } else if (selectedFolders.isNotEmpty()) {
                 BottomAppBar(
                     containerColor = MaterialTheme.colorScheme.surface,
-                    modifier = Modifier.height(64.dp)
+                    tonalElevation = 8.dp
                 ) {
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceEvenly,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .navigationBarsPadding(),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        TextButton(onClick = {
-                            selectedFolders = filteredSources.keys.toSet()
-                        }) {
-                            Text("Select All")
-                        }
-                        TextButton(
-                            onClick = { showDeleteDialog = true },
-                            colors = ButtonDefaults.textButtonColors(
-                                contentColor = MaterialTheme.colorScheme.error
-                            )
-                        ) {
-                            Icon(Icons.Default.Delete, contentDescription = "Delete")
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text("Delete")
-                        }
-                        TextButton(onClick = { showMoveCopyDialog = true }) {
-                            Icon(Icons.Default.DriveFileMove, contentDescription = "Move")
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text("Move")
-                        }
-                        TextButton(onClick = { showMoveCopyDialog = true }) {
-                            Icon(Icons.Default.ContentCopy, contentDescription = "Copy")
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text("Copy")
-                        }
-                        TextButton(onClick = {
-                            val files = selectedFolders.flatMap { path ->
-                                filteredSources[path]?.files ?: emptyList()
+                        BottomBarActionButton(
+                            modifier = Modifier.weight(1f),
+                            text = "All",
+                            icon = Icons.Default.SelectAll,
+                            onClick = {
+                                selectedFolders = filteredSources.keys.toSet()
                             }
-                            (context as MainActivity).shareFiles(files.map { it.path })
-                            viewModel.clearSelection()
-                            selectedFolders = emptySet()
-                        }) {
-                            Icon(Icons.Default.Share, contentDescription = "Share")
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text("Share")
-                        }
+                        )
+                        BottomBarActionButton(
+                            modifier = Modifier.weight(1f),
+                            text = "Delete",
+                            icon = Icons.Default.Delete,
+                            contentColor = MaterialTheme.colorScheme.error,
+                            onClick = { showDeleteDialog = true }
+                        )
+                        BottomBarActionButton(
+                            modifier = Modifier.weight(1f),
+                            text = "Move",
+                            icon = Icons.Default.DriveFileMove,
+                            onClick = { showMoveCopyDialog = true }
+                        )
+                        BottomBarActionButton(
+                            modifier = Modifier.weight(1f),
+                            text = "Copy",
+                            icon = Icons.Default.ContentCopy,
+                            onClick = { showMoveCopyDialog = true }
+                        )
+                        BottomBarMoreAction(
+                            modifier = Modifier.weight(1f),
+                            expanded = showFolderMoreMenu,
+                            onExpandedChange = { showFolderMoreMenu = it },
+                            onShare = {
+                                showFolderMoreMenu = false
+                                val files = selectedFolders.flatMap { path ->
+                                    filteredSources[path]?.files ?: emptyList()
+                                }
+                                if (files.isNotEmpty()) {
+                                    (context as? MainActivity)?.shareFiles(files.map { it.path })
+                                    viewModel.clearSelection()
+                                    selectedFolders = emptySet()
+                                }
+                            },
+                            onProperties = {
+                                showFolderMoreMenu = false
+                                Toast.makeText(
+                                    context,
+                                    "Properties coming soon",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                            }
+                        )
                     }
                 }
             }
@@ -446,7 +493,7 @@ fun CategoryDetailScreen(
                 }
             }
         )
-    }
+}
 
     if (showRenameDialog) {
         val selectedFileName = viewModel.getSelectedFileItems().firstOrNull()?.name ?: ""
@@ -463,6 +510,124 @@ fun CategoryDetailScreen(
                 showRenameDialog = false
             }
         )
+    }
+}
+
+@Composable
+private fun BottomBarActionButton(
+    modifier: Modifier = Modifier,
+    text: String,
+    icon: ImageVector,
+    enabled: Boolean = true,
+    contentColor: Color = MaterialTheme.colorScheme.onSurface,
+    onClick: () -> Unit
+) {
+    val displayColor = if (enabled) {
+        contentColor
+    } else {
+        contentColor.copy(alpha = BottomBarDisabledAlpha)
+    }
+
+    Box(
+        modifier = modifier.fillMaxHeight(),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .clickable(enabled = enabled) { onClick() }
+                .padding(vertical = 8.dp, horizontal = 4.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = text,
+                tint = displayColor,
+                modifier = Modifier.size(24.dp)
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = text,
+                style = MaterialTheme.typography.labelMedium,
+                color = displayColor
+            )
+        }
+    }
+}
+
+@Composable
+private fun BottomBarMoreAction(
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    expanded: Boolean,
+    onExpandedChange: (Boolean) -> Unit,
+    onShare: () -> Unit,
+    onProperties: () -> Unit
+) {
+    val displayColor = if (enabled) {
+        MaterialTheme.colorScheme.onSurface
+    } else {
+        MaterialTheme.colorScheme.onSurface.copy(alpha = BottomBarDisabledAlpha)
+    }
+
+    Box(
+        modifier = modifier.fillMaxHeight(),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .clickable(enabled = enabled) { onExpandedChange(true) }
+                .padding(vertical = 8.dp, horizontal = 4.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Icon(
+                imageVector = Icons.Default.MoreVert,
+                contentDescription = "More",
+                tint = displayColor,
+                modifier = Modifier.size(24.dp)
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = "More",
+                style = MaterialTheme.typography.labelMedium,
+                color = displayColor
+            )
+        }
+
+        DropdownMenu(
+            expanded = expanded && enabled,
+            onDismissRequest = { onExpandedChange(false) }
+        ) {
+            DropdownMenuItem(
+                text = { Text("Share") },
+                leadingIcon = {
+                    Icon(
+                        imageVector = Icons.Default.Share,
+                        contentDescription = null
+                    )
+                },
+                onClick = {
+                    onExpandedChange(false)
+                    onShare()
+                }
+            )
+            DropdownMenuItem(
+                text = { Text("Properties") },
+                leadingIcon = {
+                    Icon(
+                        imageVector = Icons.Default.Info,
+                        contentDescription = null
+                    )
+                },
+                onClick = {
+                    onExpandedChange(false)
+                    onProperties()
+                }
+            )
+        }
     }
 }
 

@@ -837,14 +837,10 @@ fun FolderTile(
     sourceData: SourceFolderData,
     category: FileCategory,
     isSelected: Boolean,
-    imageLoader: ImageLoader,
+    imageLoader: ImageLoader, // kept to avoid call-site changes
     onLongPress: () -> Unit,
     onClick: () -> Unit
 ) {
-    val previewFile = remember(sourceData.files) {
-        sourceData.files.firstOrNull()
-    }
-
     Card(
         modifier = Modifier
             .aspectRatio(1f)
@@ -865,66 +861,34 @@ fun FolderTile(
                 MaterialTheme.colorScheme.surface
         )
     ) {
-        Column(
-            modifier = Modifier.fillMaxSize()
-        ) {
+        Column(modifier = Modifier.fillMaxSize()) {
+
+            // --- HEADER AREA: ONLY a blue folder icon (no preview, no grey doc icon) ---
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(1f)
                     .clip(RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp))
-                    .background(MaterialTheme.colorScheme.surfaceVariant)
+                    .background(MaterialTheme.colorScheme.surfaceVariant),
+                contentAlignment = Alignment.Center
             ) {
-                if (previewFile != null && (category == FileCategory.IMAGES || category == FileCategory.VIDEOS)) {
-                    val context = LocalContext.current
-                    val painter = rememberAsyncImagePainter(
-                        model = ImageRequest.Builder(context)
-                            .data(File(previewFile.path))
-                            .crossfade(true)
-                            .build(),
-                        imageLoader = imageLoader
-                    )
-                    Image(
-                        painter = painter,
-                        contentDescription = previewFile.name,
-                        modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Crop
-                    )
-                } else {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(MaterialTheme.colorScheme.surfaceVariant),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = getIconForCategory(category),
-                            contentDescription = null,
-                            modifier = Modifier.size(36.dp),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-
                 Icon(
                     imageVector = Icons.Default.Folder,
                     contentDescription = null,
-                    modifier = Modifier
-                        .align(Alignment.TopStart)
-                        .padding(10.dp)
-                        .size(26.dp),
-                    tint = MaterialTheme.colorScheme.primary
+                    tint = Color(0xFF1976D2),            // blue folder
+                    modifier = Modifier.size(40.dp)
                 )
 
                 if (isSelected) {
                     Box(
                         modifier = Modifier
-                            .fillMaxSize()
+                            .matchParentSize()
                             .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.2f))
                     )
                 }
             }
 
+            // --- TEXT AREA: Name, then (quantity), then size ---
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -932,41 +896,32 @@ fun FolderTile(
                 verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 Text(
-                    text = "${sourceData.name} (${sourceData.itemCount})",
+                    text = sourceData.name,
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.Medium,
-                    maxLines = 2,
+                    maxLines = 1,
                     overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    text = "(${sourceData.itemCount})",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1
                 )
                 if (sourceData.totalSize > 0) {
                     Text(
                         text = FileUtils.formatFileSize(sourceData.totalSize),
-                        style = MaterialTheme.typography.bodySmall,
+                        style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
                 }
             }
-
-            if (isSelected) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 10.dp, vertical = 8.dp),
-                    horizontalArrangement = Arrangement.End
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.CheckCircle,
-                        contentDescription = "Selected",
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-            }
         }
     }
 }
+
 
 @Composable
 fun getIconForCategory(category: FileCategory): androidx.compose.ui.graphics.vector.ImageVector {

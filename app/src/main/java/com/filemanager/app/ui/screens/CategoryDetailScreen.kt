@@ -1,6 +1,6 @@
 package com.filemanager.app.ui.screens
 
-import android.os.Environment
+import android.util.Log
 import android.widget.Toast
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -68,6 +68,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -87,9 +88,11 @@ import coil.decode.VideoFrameDecoder
 import coil.request.ImageRequest
 import coil.request.videoFrameMillis
 import com.filemanager.app.MainActivity
+import com.filemanager.app.data.DestPreset
 import com.filemanager.app.data.FileCategory
 import com.filemanager.app.data.FileItem
 import com.filemanager.app.data.SourceFolderData
+import com.filemanager.app.data.StorageEntry
 import com.filemanager.app.ui.viewmodel.FileManagerViewModel
 import com.filemanager.app.utils.FileUtils
 import com.google.accompanist.swiperefresh.SwipeRefresh
@@ -98,6 +101,9 @@ import java.io.File
 import java.util.Locale
 import androidx.compose.material3.RadioButton
 import com.filemanager.app.ui.icons.docIconForExt
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 private const val BottomBarDisabledAlpha = 0.38f
 
@@ -114,6 +120,7 @@ fun CategoryDetailScreen(
     val isSelectionMode by viewModel.isSelectionMode.collectAsStateWithLifecycle()
     val selectedFiles by viewModel.selectedFiles.collectAsStateWithLifecycle()
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     val thumbnailImageLoader = remember(context) {
         ImageLoader.Builder(context)
             .components {
@@ -522,36 +529,66 @@ fun CategoryDetailScreen(
         }
         MoveCopyDialog(
             onDismiss = { showMoveCopyDialog = false },
-            onMove = { destination ->
-                val success = FileUtils.moveFiles(filesForAction, destination)
-                Toast.makeText(
-                    context,
-                    if (success) "Files moved" else "Failed to move some files",
-                    Toast.LENGTH_SHORT
-                ).show()
-                if (success) {
-                    viewModel.clearSelection()
-                    selectedFolders = emptySet()
-                    viewModel.scanFiles()
-                    showMoveCopyDialog = false
+            onMove = { preset ->
+                val appContext = context.applicationContext
+                scope.launch {
+                    val entriesForMove = withContext(Dispatchers.IO) {
+                        filesForAction.map { it.toStorageEntry() }
+                    }
+                    val result = FileUtils.moveEntriesToPreset(
+                        context = appContext,
+                        entries = entriesForMove,
+                        preset = preset,
+                        replaceIfExists = false
+                    )
+
+                    if (result.failed.isEmpty()) {
+                        Toast.makeText(
+                            context,
+                            "Moved ${'$'}{result.moved} item(s)",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                        viewModel.clearSelection()
+                        selectedFolders = emptySet()
+                        viewModel.scanFiles()
+                        showMoveCopyDialog = false
+                    } else {
+                        Toast.makeText(
+                            context,
+                            "Failed to move ${'$'}{result.failed.size} item(s)",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                        result.failed.forEach { (path, reason) ->
+                            Log.w("Move", "Fail: ${'$'}path -> ${'$'}reason")
+                        }
+                        if (result.moved > 0) {
+                            viewModel.scanFiles()
+                        }
+                    }
                 }
             },
-            onCopy = { destination ->
-                val success = FileUtils.copyFiles(filesForAction, destination)
-                Toast.makeText(
-                    context,
-                    if (success) "Files copied" else "Failed to copy some files",
-                    Toast.LENGTH_SHORT
-                ).show()
-                if (success) {
-                    viewModel.clearSelection()
-                    selectedFolders = emptySet()
-                    viewModel.scanFiles()
-                    showMoveCopyDialog = false
+            onCopy = { preset ->
+                val appContext = context.applicationContext
+                scope.launch {
+                    val destination = FileUtils.getPresetDirectory(appContext, preset).apply { mkdirs() }
+                    val success = withContext(Dispatchers.IO) {
+                        FileUtils.copyFiles(filesForAction, destination)
+                    }
+                    Toast.makeText(
+                        context,
+                        if (success) "Files copied" else "Failed to copy some files",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                    if (success) {
+                        viewModel.clearSelection()
+                        selectedFolders = emptySet()
+                        viewModel.scanFiles()
+                        showMoveCopyDialog = false
+                    }
                 }
             }
         )
-}
+    }
 
     if (showRenameDialog) {
         val selectedFileName = viewModel.getSelectedFileItems().firstOrNull()?.name ?: ""
@@ -951,21 +988,12 @@ fun getIconForCategory(category: FileCategory): androidx.compose.ui.graphics.vec
 @Composable
 fun MoveCopyDialog(
     onDismiss: () -> Unit,
-    onMove: (File) -> Unit,
-    onCopy: (File) -> Unit
+    onMove: (DestPreset) -> Unit,
+    onCopy: (DestPreset) -> Unit
 ) {
-    val destinations = remember {
-        listOf(
-            "Internal Storage" to Environment.getExternalStorageDirectory(),
-            "Downloads" to Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
-            "Documents" to Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS),
-            "Pictures" to Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES),
-            "Music" to Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MUSIC),
-            "Movies" to Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MOVIES)
-        )
-    }
-    
-    var selectedDestination by remember { mutableStateOf<File?>(null) }
+    val destinations = remember { DestPreset.values().toList() }
+
+    var selectedDestination by remember { mutableStateOf<DestPreset?>(null) }
     
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -978,20 +1006,20 @@ fun MoveCopyDialog(
             ) {
                 Text("Select destination:")
                 Spacer(modifier = Modifier.height(8.dp))
-                destinations.forEach { (name, file) ->
+                destinations.forEach { preset ->
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clickable { selectedDestination = file }
+                            .clickable { selectedDestination = preset }
                             .padding(vertical = 8.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         RadioButton(
-                            selected = selectedDestination == file,
-                            onClick = { selectedDestination = file }
+                            selected = selectedDestination == preset,
+                            onClick = { selectedDestination = preset }
                         )
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text(name)
+                        Text(preset.displayName)
                     }
                 }
             }
@@ -1021,5 +1049,25 @@ fun MoveCopyDialog(
                 Text("Cancel")
             }
         }
+    )
+}
+
+private fun FileItem.toStorageEntry(): StorageEntry {
+    val file = File(path)
+    val isDir = file.isDirectory
+    val actualName = file.name.takeIf { it.isNotBlank() } ?: name
+    val extension = if (!isDir) actualName.substringAfterLast('.', "").lowercase(Locale.getDefault()) else ""
+    val sizeValue = if (!isDir && file.exists()) file.length() else size
+    val lastModifiedValue = if (file.exists()) file.lastModified() else dateModified
+    val count = if (isDir) file.listFiles()?.size ?: 0 else 0
+
+    return StorageEntry(
+        path = path,
+        name = actualName,
+        isDirectory = isDir,
+        size = sizeValue,
+        itemCount = count,
+        lastModified = lastModifiedValue,
+        extension = extension
     )
 }

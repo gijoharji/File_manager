@@ -3,6 +3,7 @@ package com.filemanager.app.utils
 
 import android.annotation.SuppressLint
 import android.content.Context
+import android.media.MediaScannerConnection
 import android.os.Build
 import android.os.Environment
 import android.os.StatFs
@@ -14,6 +15,8 @@ import com.filemanager.app.data.FileCategory
 import com.filemanager.app.data.FileItem
 import com.filemanager.app.data.SourceFolderData
 import com.filemanager.app.data.StorageEntry
+import com.filemanager.app.data.DestPreset
+import com.filemanager.app.data.MoveResult
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -408,27 +411,82 @@ object FileUtils {
         }
     }
 
-    fun moveFiles(files: List<FileItem>, destination: File): Boolean {
-        return files.all { fileItem ->
+    suspend fun moveEntriesToPreset(
+        context: Context,
+        entries: List<StorageEntry>,
+        preset: DestPreset,
+        replaceIfExists: Boolean = false
+    ): MoveResult = withContext(Dispatchers.IO) {
+        val appContext = context.applicationContext
+        val destRoot = resolvePresetDir(appContext, preset).apply { mkdirs() }
+        if (!destRoot.exists() || !destRoot.isDirectory || !destRoot.canWrite()) {
+            return@withContext MoveResult(0, entries.size, entries.map { it.path to "Destination not writable" })
+        }
+
+        var moved = 0
+        var skipped = 0
+        val failed = mutableListOf<Pair<String, String>>()
+
+        entries.forEach { entry ->
+            val src = File(entry.path)
+            if (!src.exists()) {
+                failed += entry.path to "Source missing"
+                return@forEach
+            }
+
+            val dst = File(destRoot, src.name)
+            if (dst.exists() && !replaceIfExists) {
+                skipped++
+                return@forEach
+            }
+            dst.parentFile?.mkdirs()
+
             try {
-                val sourceFile = File(fileItem.path)
-                val destFile = File(destination, fileItem.name)
-
-                // Handle duplicates
-                var finalDest = destFile
-                var counter = 1
-                while (finalDest.exists()) {
-                    val nameWithoutExt = fileItem.name.substringBeforeLast(".")
-                    val ext = fileItem.name.substringAfterLast(".", "")
-                    finalDest = File(destination, "$nameWithoutExt ($counter).$ext")
-                    counter++
+                if (src.isDirectory) {
+                    val ok = tryMove(src, dst, replaceIfExists)
+                    if (!ok) {
+                        val copied = copyDirRecursive(src, dst, replaceIfExists)
+                        if (copied && src.deleteRecursively()) {
+                            moved++
+                            rescan(appContext, dst)
+                            rescan(appContext, src)
+                        } else {
+                            failed += entry.path to "Copy/delete failed"
+                        }
+                    } else {
+                        moved++
+                        rescan(appContext, dst)
+                        rescan(appContext, src)
+                    }
+                } else {
+                    val ok = tryMove(src, dst, replaceIfExists)
+                    if (!ok) {
+                        copyFile(src, dst, replaceIfExists)
+                        if (dst.length() == src.length() && src.delete()) {
+                            moved++
+                            rescan(appContext, dst)
+                            rescan(appContext, src)
+                        } else {
+                            failed += entry.path to "Copy or delete failed"
+                        }
+                    } else {
+                        moved++
+                        rescan(appContext, dst)
+                        rescan(appContext, src)
+                    }
                 }
-
-                sourceFile.renameTo(finalDest)
+            } catch (se: SecurityException) {
+                failed += entry.path to "SecurityException: ${se.message ?: ""}"
             } catch (e: Exception) {
-                false
+                failed += entry.path to (e.message ?: "Unknown error")
             }
         }
+
+        MoveResult(moved, skipped, failed)
+    }
+
+    fun getPresetDirectory(context: Context, preset: DestPreset): File {
+        return resolvePresetDir(context.applicationContext, preset)
     }
 
     fun renameFile(file: FileItem, newName: String): Boolean {
@@ -590,6 +648,81 @@ object FileUtils {
         } ?: return null
 
         return Pair(itemCount, totalSize)
+    }
+
+    private fun resolvePresetDir(context: Context, preset: DestPreset): File {
+        return when (preset) {
+            DestPreset.INTERNAL -> Environment.getExternalStorageDirectory()
+            DestPreset.DOWNLOADS -> Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+            DestPreset.DOCUMENTS -> Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS)
+            DestPreset.PICTURES -> Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES)
+            DestPreset.MUSIC -> Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MUSIC)
+            DestPreset.MOVIES -> Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MOVIES)
+        }
+    }
+
+    private fun tryMove(src: File, dst: File, replace: Boolean): Boolean {
+        return try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                val options = if (replace) arrayOf(java.nio.file.StandardCopyOption.REPLACE_EXISTING) else emptyArray()
+                java.nio.file.Files.move(src.toPath(), dst.toPath(), *options)
+                true
+            } else {
+                if (replace && dst.exists()) dst.delete()
+                src.renameTo(dst)
+            }
+        } catch (_: Exception) {
+            false
+        }
+    }
+
+    private fun copyFile(src: File, dst: File, replace: Boolean) {
+        if (dst.exists()) {
+            if (replace) {
+                dst.delete()
+            } else {
+                return
+            }
+        }
+        dst.parentFile?.mkdirs()
+        src.inputStream().use { input ->
+            dst.outputStream().use { output ->
+                input.copyTo(output)
+            }
+        }
+    }
+
+    private fun copyDirRecursive(srcDir: File, dstDir: File, replace: Boolean): Boolean {
+        if (!dstDir.exists()) {
+            dstDir.mkdirs()
+        } else if (replace) {
+            dstDir.deleteRecursively()
+            dstDir.mkdirs()
+        }
+
+        val children = srcDir.listFiles() ?: return true
+        for (child in children) {
+            val target = File(dstDir, child.name)
+            if (child.isDirectory) {
+                if (!copyDirRecursive(child, target, replace)) return false
+            } else {
+                copyFile(child, target, replace)
+            }
+        }
+        return true
+    }
+
+    private fun rescan(context: Context, file: File) {
+        try {
+            MediaScannerConnection.scanFile(
+                context,
+                arrayOf(file.absolutePath),
+                null,
+                null
+            )
+        } catch (_: Exception) {
+            // best effort
+        }
     }
 }
 

@@ -42,6 +42,7 @@ import android.webkit.MimeTypeMap
 
 
 class MainActivity : ComponentActivity() {
+    private var askedAllFilesOnce = false
     
     private val viewModel: com.filemanager.app.ui.viewmodel.FileManagerViewModel by viewModels()
     
@@ -59,8 +60,15 @@ class MainActivity : ComponentActivity() {
     private val manageStorageLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
     ) {
-        checkPermissionsAndScan()
+        // Settings screen closed; re-check once
+        if (hasPermissions()) {
+            viewModel.scanFiles()
+        } else {
+            Toast.makeText(this, "All files access not granted.", Toast.LENGTH_SHORT).show()
+            // Do NOT call requestPermissions() here; that causes the loop.
+        }
     }
+
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -88,39 +96,42 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun hasPermissions(): Boolean {
-        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            ContextCompat.checkSelfPermission(
-                this,
-                Manifest.permission.READ_MEDIA_IMAGES
-            ) == PackageManager.PERMISSION_GRANTED &&
-            ContextCompat.checkSelfPermission(
-                this,
-                Manifest.permission.READ_MEDIA_VIDEO
-            ) == PackageManager.PERMISSION_GRANTED &&
-            ContextCompat.checkSelfPermission(
-                this,
-                Manifest.permission.READ_MEDIA_AUDIO
-            ) == PackageManager.PERMISSION_GRANTED
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            Environment.isExternalStorageManager()
+        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            ContextCompat.checkSelfPermission(this, Manifest.permission.READ_MEDIA_IMAGES) == PackageManager.PERMISSION_GRANTED &&
+                    ContextCompat.checkSelfPermission(this, Manifest.permission.READ_MEDIA_VIDEO)  == PackageManager.PERMISSION_GRANTED &&
+                    ContextCompat.checkSelfPermission(this, Manifest.permission.READ_MEDIA_AUDIO)  == PackageManager.PERMISSION_GRANTED
         } else {
-            ContextCompat.checkSelfPermission(
-                this,
-                Manifest.permission.READ_EXTERNAL_STORAGE
-            ) == PackageManager.PERMISSION_GRANTED
+            ContextCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED
         }
     }
 
+
     private fun requestPermissions() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            // Request All files access via Settings screen
-            val intent = try {
-                Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION).apply {
-                    data = Uri.parse("package:$packageName")
-                }
-            } catch (_: Exception) {
-                Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION)
+            if (Environment.isExternalStorageManager()) {
+                viewModel.scanFiles()
+                return
             }
-            manageStorageLauncher.launch(intent)
-        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (!askedAllFilesOnce) {
+                askedAllFilesOnce = true
+                val intent = try {
+                    Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION).apply {
+                        data = Uri.parse("package:$packageName")
+                    }
+                } catch (_: Exception) {
+                    Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION)
+                }
+                manageStorageLauncher.launch(intent)
+            } else {
+                // We already sent the user once; show a message instead of looping.
+                Toast.makeText(this, "Please enable \"All files access\" then return to the app.", Toast.LENGTH_LONG).show()
+            }
+            return
+        }
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             requestPermissionLauncher.launch(
                 arrayOf(
                     Manifest.permission.READ_MEDIA_IMAGES,
@@ -129,13 +140,10 @@ class MainActivity : ComponentActivity() {
                 )
             )
         } else {
-            requestPermissionLauncher.launch(
-                arrayOf(
-                    Manifest.permission.READ_EXTERNAL_STORAGE
-                )
-            )
+            requestPermissionLauncher.launch(arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE))
         }
     }
+
 
 
     private fun showPermissionRationale() {

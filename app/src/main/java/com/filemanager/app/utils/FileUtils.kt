@@ -1,5 +1,6 @@
 package com.filemanager.app.utils
 
+
 import android.annotation.SuppressLint
 import android.content.Context
 import android.os.Build
@@ -18,6 +19,8 @@ import kotlinx.coroutines.withContext
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.*
+import android.net.Uri
+import java.util.Locale
 
 object FileUtils {
 
@@ -178,81 +181,88 @@ object FileUtils {
             MediaStore.Files.FileColumns.DATA,
             MediaStore.Files.FileColumns.DISPLAY_NAME,
             MediaStore.Files.FileColumns.SIZE,
-            MediaStore.Files.FileColumns.DATE_MODIFIED
+            MediaStore.Files.FileColumns.DATE_MODIFIED,
+            MediaStore.Files.FileColumns.MIME_TYPE
         )
-        val selection = DOCUMENT_MIME_TYPES.joinToString(
-            prefix = "(",
-            separator = " OR ",
-            postfix = ")"
-        ) { "${MediaStore.Files.FileColumns.MIME_TYPE} = ?" }
+
+        // mime_type IN (?,?,...)
+        val placeholders = DOCUMENT_MIME_TYPES.joinToString(",") { "?" }
+        val selection = buildString {
+            append("${MediaStore.Files.FileColumns.MIME_TYPE} IN ($placeholders)")
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                append(" AND ${MediaStore.Files.FileColumns.IS_PENDING}=0")
+            }
+        }
         val selectionArgs = DOCUMENT_MIME_TYPES
 
-        val cursor = try {
-            resolver.query(
-                MediaStore.Files.getContentUri(MediaStore.VOLUME_EXTERNAL),
-                projection,
-                selection,
-                selectionArgs,
-                "${MediaStore.Files.FileColumns.DATE_MODIFIED} DESC"
-            )
-        } catch (e: Exception) {
-            null
-        } ?: return mutableMapOf()
+        // Query ALL external volumes (e.g., primary + SDs)
+        val volumes: Set<String> = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            MediaStore.getExternalVolumeNames(context)
+        } else {
+            setOf(MediaStore.VOLUME_EXTERNAL)
+        }
 
         val storageRootPath = Environment.getExternalStorageDirectory().absolutePath
         val documents = mutableMapOf<String, MutableList<FileItem>>()
 
-        cursor.use { c ->
-            val dataIndex = c.getColumnIndex(MediaStore.Files.FileColumns.DATA)
-            val nameIndex = c.getColumnIndex(MediaStore.Files.FileColumns.DISPLAY_NAME)
-            val sizeIndex = c.getColumnIndex(MediaStore.Files.FileColumns.SIZE)
-            val dateIndex = c.getColumnIndex(MediaStore.Files.FileColumns.DATE_MODIFIED)
+        for (vol in volumes) {
+            val uri = MediaStore.Files.getContentUri(vol)
+            try {
+                resolver.query(
+                    uri, projection, selection, selectionArgs,
+                    "${MediaStore.Files.FileColumns.DATE_MODIFIED} DESC"
+                )?.use { c ->
+                    val dataIdx = c.getColumnIndex(MediaStore.Files.FileColumns.DATA)
+                    val nameIdx = c.getColumnIndex(MediaStore.Files.FileColumns.DISPLAY_NAME)
+                    val sizeIdx = c.getColumnIndex(MediaStore.Files.FileColumns.SIZE)
+                    val dateIdx = c.getColumnIndex(MediaStore.Files.FileColumns.DATE_MODIFIED)
 
-            while (c.moveToNext()) {
-                val path = if (dataIndex != -1) c.getString(dataIndex) else null
-                if (path.isNullOrBlank()) continue
+                    while (c.moveToNext()) {
+                        val path = if (dataIdx != -1) c.getString(dataIdx) else null
+                        if (path.isNullOrBlank()) continue
 
-                val file = File(path)
-                if (!file.exists()) continue
+                        val f = File(path)
+                        if (!f.exists()) continue
 
-                val name = when {
-                    nameIndex != -1 -> c.getString(nameIndex)
-                    else -> file.name
-                }?.takeIf { it.isNotBlank() } ?: continue
+                        val name = if (nameIdx != -1) c.getString(nameIdx) ?: f.name else f.name
+                        val size = if (sizeIdx != -1) c.getLong(sizeIdx) else f.length()
+                        val modified = if (dateIdx != -1) c.getLong(dateIdx) * 1000L else f.lastModified()
 
-                val size = when {
-                    sizeIndex != -1 -> c.getLong(sizeIndex)
-                    else -> file.length()
+                        val sourcePath = f.parent ?: storageRootPath
+                        val bucket = documents.getOrPut(sourcePath) { mutableListOf() }
+                        bucket.add(
+                            FileItem(
+                                path = path,
+                                name = name,
+                                size = size,
+                                dateModified = modified,
+                                category = FileCategory.DOCUMENTS
+                            )
+                        )
+                    }
                 }
-
-                val modifiedSeconds = if (dateIndex != -1) c.getLong(dateIndex) else null
-                val modified = modifiedSeconds?.let { it * 1000 } ?: file.lastModified()
-
-                val sourcePath = file.parent ?: storageRootPath
-                val bucket = documents.getOrPut(sourcePath) { mutableListOf() }
-                bucket.add(
-                    FileItem(
-                        path = path,
-                        name = name,
-                        size = size,
-                        dateModified = modified,
-                        category = FileCategory.DOCUMENTS
-                    )
-                )
+            } catch (_: Exception) {
+                // Ignore a bad volume and continue
             }
         }
 
         return documents
     }
 
-    private fun classifyFile(file: File): FileCategory? {
-        val category = FileCategory.fromFile(file)
-        if (category != null) {
-            return category
-        }
 
-        return null
+    private fun classifyFile(file: File): FileCategory? {
+        val ext = file.extension.lowercase(Locale.getDefault())
+        return when {
+            ext in FileCategory.IMAGES.extensions    -> FileCategory.IMAGES
+            ext in FileCategory.VIDEOS.extensions    -> FileCategory.VIDEOS
+            ext in FileCategory.AUDIO.extensions     -> FileCategory.AUDIO
+            ext in FileCategory.DOCUMENTS.extensions -> FileCategory.DOCUMENTS
+            ext in FileCategory.ARCHIVES.extensions  -> FileCategory.ARCHIVES
+            ext in FileCategory.APKS.extensions      -> FileCategory.APKS
+            else -> null
+        }
     }
+
     private fun getSourcePath(file: File): String {
         val absolutePath = file.absolutePath
         val storageRoot = Environment.getExternalStorageDirectory().absolutePath

@@ -71,9 +71,26 @@ object FileUtils {
         scanDirectoryRecursive(storageRoot, categoryMap)
 
         // Some document locations (like Android/media) may be visible only via MediaStore APIs.
-        // Replace the scanned document bucket with MediaStore PDFs so we rely on the correct
-        // MIME type (application/pdf) while debugging missing document counts.
-        categoryMap[FileCategory.DOCUMENTS] = loadDocumentsFromMediaStore(context)
+        // Merge MediaStore documents with scanned ones so we keep any files already detected
+        // from direct storage traversal while also adding scoped-storage only entries.
+        val mediaStoreDocuments = loadDocumentsFromMediaStore(context)
+        if (mediaStoreDocuments.isNotEmpty()) {
+            val documentBuckets = categoryMap[FileCategory.DOCUMENTS]
+                ?: mutableMapOf<String, MutableList<FileItem>>().also {
+                    categoryMap[FileCategory.DOCUMENTS] = it
+                }
+
+            mediaStoreDocuments.forEach { (source, files) ->
+                val bucket = documentBuckets.getOrPut(source) { mutableListOf() }
+                val existingPaths = bucket.mapTo(mutableSetOf()) { it.path }
+                files.forEach { fileItem ->
+                    if (existingPaths.add(fileItem.path)) {
+                        bucket.add(fileItem)
+                    }
+                }
+                bucket.sortByDescending { it.dateModified }
+            }
+        }
 
         // Build result
         categoryMap.mapValues { (category, sourceMap) ->

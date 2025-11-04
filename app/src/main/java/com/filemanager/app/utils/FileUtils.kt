@@ -21,6 +21,20 @@ import java.util.*
 
 object FileUtils {
 
+    private val DOCUMENT_MIME_TYPES = arrayOf(
+        "application/pdf",
+        "application/msword",
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "application/vnd.ms-excel",
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        "application/vnd.ms-powerpoint",
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+        "text/plain",
+        "application/rtf",
+        "text/html",
+        "application/epub+zip"
+    )
+
     private val groupingRoots = listOf(
         Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM),
         Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES),
@@ -149,8 +163,12 @@ object FileUtils {
             MediaStore.Files.FileColumns.SIZE,
             MediaStore.Files.FileColumns.DATE_MODIFIED
         )
-        val selection = "${MediaStore.Files.FileColumns.MIME_TYPE} = ?"
-        val selectionArgs = arrayOf("application/pdf")
+        val selection = DOCUMENT_MIME_TYPES.joinToString(
+            prefix = "(",
+            separator = " OR ",
+            postfix = ")"
+        ) { "${MediaStore.Files.FileColumns.MIME_TYPE} = ?" }
+        val selectionArgs = DOCUMENT_MIME_TYPES
 
         val cursor = try {
             resolver.query(

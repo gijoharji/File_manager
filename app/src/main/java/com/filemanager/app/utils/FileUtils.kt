@@ -463,36 +463,38 @@ object FileUtils {
 
     fun listDirectoryEntries(context: Context, path: String): List<StorageEntry> {
         val directory = File(path)
-        if (!directory.exists() || !directory.isDirectory || !directory.canRead()) {
-            return emptyList()
-        }
+        if (!directory.exists() || !directory.isDirectory) return emptyList()
 
         val children = try {
             directory.listFiles()
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             null
         }?.filterNot { it.isHidden } ?: return emptyList()
 
         return children.map { file ->
-            val (itemCount, size) = if (file.isDirectory) {
-                getDirectoryMetrics(context, file)
+            val isDir = file.isDirectory
+            val (itemCount, size) = if (isDir) {
+                getDirectoryMetrics(context, file)      // keep your existing metrics
             } else {
-                Pair(0, file.length())
+                0 to file.length()
             }
 
             StorageEntry(
                 path = file.absolutePath,
                 name = file.name.ifBlank { file.absolutePath },
-                isDirectory = file.isDirectory,
+                isDirectory = isDir,
                 size = size,
                 itemCount = itemCount,
-                lastModified = file.lastModified()
+                lastModified = file.lastModified(),
+                extension = if (!isDir) file.name.substringAfterLast('.', "")
+                    .lowercase(Locale.getDefault()) else ""
             )
         }.sortedWith(
-            compareByDescending<StorageEntry> { it.isDirectory }
+            compareBy<StorageEntry> { !it.isDirectory }   // directories first
                 .thenBy { it.name.lowercase(Locale.getDefault()) }
         )
     }
+
 
     private fun getDirectoryMetrics(context: Context, directory: File): Pair<Int, Long> {
         val visibleChildren = try {

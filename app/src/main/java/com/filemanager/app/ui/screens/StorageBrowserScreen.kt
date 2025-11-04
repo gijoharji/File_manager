@@ -1,6 +1,10 @@
 package com.filemanager.app.ui.screens
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -14,6 +18,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Folder
+import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.Divider
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -24,16 +29,103 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.graphics.vector.path
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.platform.LocalContext
+import com.filemanager.app.MainActivity
 import com.filemanager.app.data.StorageEntry
 import com.filemanager.app.utils.FileUtils
 import java.io.File
+import java.util.Locale
+
+@Composable
+private fun StorageEntryGridItem(
+    entry: StorageEntry,    onClick: (StorageEntry) -> Unit, // <<< ONLY ONE CLICK HANDLER
+    modifier: Modifier = Modifier
+)
+ {
+    // --- icon by type ---
+    // ... inside StorageEntryGridItem
+    val (icon, tint) = if (entry.isDirectory) {
+        // If it's a directory, use the folder icon and primary color
+        Icons.Default.Folder to MaterialTheme.colorScheme.primary
+    } else {
+        // If it's a file, get the spec from our helper function
+        val ext = entry.name.substringAfterLast('.', "").lowercase(Locale.getDefault())
+        val spec = iconForExt(ext)
+
+        // CORRECTED: Assign the icon and tint from the returned IconSpec
+        spec.icon to spec.tint
+    }
+
+
+     Card(
+         modifier = modifier
+             .fillMaxWidth().clickable { onClick(entry) }, // <<< SIMPLIFIED
+        shape = MaterialTheme.shapes.medium,
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(10.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = entry.name,
+                tint = tint,
+                modifier = Modifier
+                    .padding(vertical = 12.dp)
+                    .size(40.dp)
+            )
+
+            Text(
+                text = entry.name,
+                style = MaterialTheme.typography.bodyMedium,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+                textAlign = TextAlign.Center
+            )
+
+            val subtitle = if (entry.isDirectory) {
+                val count = if (entry.itemCount == 1) "1 item" else "${entry.itemCount} items"
+                count
+            } else {
+                FileUtils.formatFileSize(entry.size)
+            }
+            Text(
+                text = subtitle,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1
+            )
+        }
+    }
+}
+
+private data class IconSpec(val icon: ImageVector, val tint: Color)
+
+// Map file extension -> icon + color
+private fun iconForExt(extRaw: String): IconSpec = when (extRaw.lowercase()) {
+    "pdf"                 -> IconSpec(Icons.Outlined.PictureAsPdf, Color(0xFFD32F2F)) // red
+    "doc", "docx"         -> IconSpec(Icons.Outlined.Description,  Color(0xFF1565C0)) // blue
+    "xls", "xlsx", "csv"  -> IconSpec(Icons.Outlined.GridOn,       Color(0xFF2E7D32)) // green
+    "ppt", "pptx"         -> IconSpec(Icons.Outlined.Slideshow,    Color(0xFFF57C00)) // orange
+    "txt"                 -> IconSpec(Icons.Outlined.Article,      Color(0xFF616161)) // gray
+    "rtf","html","htm","epub" ->
+        IconSpec(Icons.Outlined.Article,      Color(0xFF6A1B9A)) // purple
+    else                  -> IconSpec(Icons.Outlined.InsertDriveFile, Color(0xFF455A64))
+}
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -114,85 +206,40 @@ fun StorageBrowserScreen(
                 }
 
                 else -> {
-                    LazyColumn(
+                    val context = LocalContext.current
+
+                    LazyVerticalGrid(
+                        columns = GridCells.Adaptive(minSize = 120.dp),
                         modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(vertical = 4.dp)
+                        contentPadding = PaddingValues(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
+                        // ... inside LazyVerticalGrid
+                        // ... inside LazyVerticalGrid ...
                         items(entries, key = { it.path }) { entry ->
-                            StorageEntryRow(
+                            StorageEntryGridItem(
                                 entry = entry,
-                                onClick = {
-                                    if (entry.isDirectory) {
-                                        onFolderClick(entry)
+                                onClick = { clickedEntry ->
+                                    // Logic is now here, where it belongs
+                                    if (clickedEntry.isDirectory) {
+                                        onFolderClick(clickedEntry)
+                                    } else {
+                                        (context as? MainActivity)?.openFileWith(clickedEntry.path)
                                     }
                                 }
                             )
-                            Divider(color = MaterialTheme.colorScheme.surfaceVariant)
                         }
+
+
                     }
+
+
                 }
             }
         }
-    }
-}
 
-@Composable
-private fun StorageEntryRow(
-    entry: StorageEntry,
-    onClick: () -> Unit
-) {
-    val icon = if (entry.isDirectory) {
-        Icons.Default.Folder
-    } else {
-        Icons.Default.Description
+
     }
 
-    val subtitle = if (entry.isDirectory) {
-        val sizeText = FileUtils.formatFileSize(entry.size)
-        val countText = if (entry.itemCount == 1) "1 item" else "${entry.itemCount} items"
-        "$countText • $sizeText"
-    } else {
-        FileUtils.formatFileSize(entry.size)
-    }
-
-    Surface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(enabled = entry.isDirectory, onClick = onClick),
-        color = Color.Transparent
-    ) {
-        Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
-            RowHeader(entry = entry, iconName = icon)
-            Text(
-                text = subtitle,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-        }
-    }
-}
-
-@Composable
-private fun RowHeader(entry: StorageEntry, iconName: androidx.compose.ui.graphics.vector.ImageVector) {
-    androidx.compose.foundation.layout.Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        Icon(
-            imageVector = iconName,
-            contentDescription = null,
-            tint = if (entry.isDirectory) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
-        )
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = entry.name,
-                style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium),
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-        }
-    }
 }

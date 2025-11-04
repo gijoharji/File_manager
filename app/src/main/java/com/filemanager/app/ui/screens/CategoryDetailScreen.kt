@@ -97,6 +97,7 @@ import com.google.accompanist.swiperefresh.rememberSwipeRefreshState
 import java.io.File
 import java.util.Locale
 import androidx.compose.material3.RadioButton
+import com.filemanager.app.ui.icons.docIconForExt
 
 private const val BottomBarDisabledAlpha = 0.38f
 
@@ -749,7 +750,18 @@ fun FileTile(
                             .background(MaterialTheme.colorScheme.surfaceVariant),
                         contentAlignment = Alignment.Center
                     ) {
-                        if (category != FileCategory.DOCUMENTS) {
+                        if (category == FileCategory.DOCUMENTS) {
+                            // Show a per-extension document icon (PDF/Word/Excel/PPT/TXT…)
+                            val ext = fileItem.name.substringAfterLast('.', "").lowercase(Locale.getDefault())
+                            val spec = docIconForExt(ext) // <- your mapper
+                            Icon(
+                                imageVector = spec.icon,
+                                contentDescription = null,
+                                modifier = Modifier.size(36.dp),
+                                tint = spec.tint
+                            )
+                        } else {
+                            // Non-document generic category icon (Audio/Archives/APKs)
                             Icon(
                                 imageVector = getIconForCategory(category),
                                 contentDescription = null,
@@ -759,6 +771,7 @@ fun FileTile(
                         }
                     }
                 }
+
 
                 if (isSelected) {
                     Box(

@@ -6,5 +6,6 @@ data class StorageEntry(
     val isDirectory: Boolean,
     val size: Long,
     val itemCount: Int,
-    val lastModified: Long
+    val lastModified: Long,
+    val extension: String = ""
 )

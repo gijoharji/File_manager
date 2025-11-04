@@ -36,6 +36,10 @@ import com.filemanager.app.ui.screens.*
 import com.filemanager.app.ui.theme.FileManagerTheme
 import com.filemanager.app.utils.FileUtils
 import java.io.File
+import android.app.Activity
+import android.provider.DocumentsContract
+import android.webkit.MimeTypeMap
+
 
 class MainActivity : ComponentActivity() {
     
@@ -106,7 +110,17 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun requestPermissions() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            // Request All files access via Settings screen
+            val intent = try {
+                Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION).apply {
+                    data = Uri.parse("package:$packageName")
+                }
+            } catch (_: Exception) {
+                Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION)
+            }
+            manageStorageLauncher.launch(intent)
+        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             requestPermissionLauncher.launch(
                 arrayOf(
                     Manifest.permission.READ_MEDIA_IMAGES,
@@ -117,20 +131,24 @@ class MainActivity : ComponentActivity() {
         } else {
             requestPermissionLauncher.launch(
                 arrayOf(
-                    Manifest.permission.READ_EXTERNAL_STORAGE,
-                    Manifest.permission.WRITE_EXTERNAL_STORAGE
+                    Manifest.permission.READ_EXTERNAL_STORAGE
                 )
             )
         }
     }
 
+
     private fun showPermissionRationale() {
         Toast.makeText(
             this,
-            "Storage permissions are required to categorize files",
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R)
+                "Please allow \"All files access\" so the app can find your documents (PDF, Word, Excel, etc.)."
+            else
+                "Storage permission is required to categorize files.",
             Toast.LENGTH_LONG
         ).show()
     }
+
 
     fun shareFiles(filePaths: List<String>) {
         if (filePaths.isEmpty()) return
@@ -163,20 +181,21 @@ class MainActivity : ComponentActivity() {
         try {
             val file = File(filePath)
             val uri = FileProvider.getUriForFile(
-                this,
-                "${packageName}.fileprovider",
-                file
+                this, "${packageName}.fileprovider", file
             )
-            
+            // Guess MIME from extension; FileProvider Uris may not resolve via contentResolver.getType(...)
+            val ext = file.extension.lowercase()
+            val mime = MimeTypeMap.getSingleton().getMimeTypeFromExtension(ext) ?: "*/*"
+
             val intent = Intent(Intent.ACTION_VIEW).apply {
-                setDataAndType(uri, contentResolver.getType(uri))
+                setDataAndType(uri, mime)
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
             }
-            
             startActivity(Intent.createChooser(intent, "Open with"))
         } catch (e: Exception) {
             Toast.makeText(this, "Cannot open file", Toast.LENGTH_SHORT).show()
         }
     }
+
 }
 

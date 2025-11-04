@@ -177,15 +177,17 @@ object FileUtils {
     @SuppressLint("Range")
     private fun loadDocumentsFromMediaStore(context: Context): MutableMap<String, MutableList<FileItem>> {
         val resolver = context.contentResolver
-        val projection = arrayOf(
-            MediaStore.Files.FileColumns.DATA,
-            MediaStore.Files.FileColumns.DISPLAY_NAME,
-            MediaStore.Files.FileColumns.SIZE,
-            MediaStore.Files.FileColumns.DATE_MODIFIED,
-            MediaStore.Files.FileColumns.MIME_TYPE
-        )
+        val projection = buildList {
+            add(MediaStore.Files.FileColumns.DATA)                   // may be null on API 29+
+            add(MediaStore.Files.FileColumns.DISPLAY_NAME)
+            add(MediaStore.Files.FileColumns.SIZE)
+            add(MediaStore.Files.FileColumns.DATE_MODIFIED)
+            add(MediaStore.Files.FileColumns.MIME_TYPE)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                add(MediaStore.Files.FileColumns.RELATIVE_PATH)      // fallback path pieces
+            }
+        }.toTypedArray()
 
-        // mime_type IN (?,?,...)
         val placeholders = DOCUMENT_MIME_TYPES.joinToString(",") { "?" }
         val selection = buildString {
             append("${MediaStore.Files.FileColumns.MIME_TYPE} IN ($placeholders)")
@@ -195,7 +197,6 @@ object FileUtils {
         }
         val selectionArgs = DOCUMENT_MIME_TYPES
 
-        // Query ALL external volumes (e.g., primary + SDs)
         val volumes: Set<String> = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             MediaStore.getExternalVolumeNames(context)
         } else {
@@ -216,15 +217,25 @@ object FileUtils {
                     val nameIdx = c.getColumnIndex(MediaStore.Files.FileColumns.DISPLAY_NAME)
                     val sizeIdx = c.getColumnIndex(MediaStore.Files.FileColumns.SIZE)
                     val dateIdx = c.getColumnIndex(MediaStore.Files.FileColumns.DATE_MODIFIED)
+                    val relIdx  = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q)
+                        c.getColumnIndex(MediaStore.Files.FileColumns.RELATIVE_PATH) else -1
 
                     while (c.moveToNext()) {
-                        val path = if (dataIdx != -1) c.getString(dataIdx) else null
-                        if (path.isNullOrBlank()) continue
+                        // Prefer DATA; if missing, build absolute path from RELATIVE_PATH + DISPLAY_NAME
+                        val dataPath = if (dataIdx != -1) c.getString(dataIdx) else null
+                        val display  = if (nameIdx != -1) c.getString(nameIdx) else null
+                        val relPath  = if (relIdx  != -1) c.getString(relIdx)  else null
 
-                        val f = File(path)
-                        if (!f.exists()) continue
+                        val absolutePath = when {
+                            !dataPath.isNullOrBlank() -> dataPath
+                            !relPath.isNullOrBlank() && !display.isNullOrBlank() ->
+                                File(Environment.getExternalStorageDirectory(), relPath + display).absolutePath
+                            else -> null
+                        } ?: continue
 
-                        val name = if (nameIdx != -1) c.getString(nameIdx) ?: f.name else f.name
+                        val f = File(absolutePath)
+                        if (!f.exists()) continue   // if you don’t have access, this will fail; see note below
+
                         val size = if (sizeIdx != -1) c.getLong(sizeIdx) else f.length()
                         val modified = if (dateIdx != -1) c.getLong(dateIdx) * 1000L else f.lastModified()
 
@@ -232,8 +243,8 @@ object FileUtils {
                         val bucket = documents.getOrPut(sourcePath) { mutableListOf() }
                         bucket.add(
                             FileItem(
-                                path = path,
-                                name = name,
+                                path = absolutePath,
+                                name = display ?: f.name,
                                 size = size,
                                 dateModified = modified,
                                 category = FileCategory.DOCUMENTS
@@ -242,12 +253,12 @@ object FileUtils {
                     }
                 }
             } catch (_: Exception) {
-                // Ignore a bad volume and continue
+                // skip bad volume
             }
         }
-
         return documents
     }
+
 
 
     private fun classifyFile(file: File): FileCategory? {

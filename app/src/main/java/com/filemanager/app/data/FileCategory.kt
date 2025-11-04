@@ -18,7 +18,20 @@ enum class FileCategory(val displayName: String, val extensions: Set<String>) {
     ),
     DOCUMENTS(
         "Documents",
-        setOf("pdf")
+        setOf(
+            "pdf",
+            "doc",
+            "docx",
+            "xls",
+            "xlsx",
+            "ppt",
+            "pptx",
+            "txt",
+            "rtf",
+            "html",
+            "htm",
+            "epub"
+        )
     ),
     APKS(
         "APKs",
@@ -31,11 +44,7 @@ enum class FileCategory(val displayName: String, val extensions: Set<String>) {
 
     fun matches(file: File): Boolean {
         val extension = file.extension.lowercase(Locale.getDefault())
-        return if (this == DOCUMENTS) {
-            extension == "pdf"
-        } else {
-            extensions.contains(extension)
-        }
+        return extensions.contains(extension)
     }
 
     companion object {

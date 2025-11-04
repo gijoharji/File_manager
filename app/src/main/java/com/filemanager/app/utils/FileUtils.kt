@@ -21,6 +21,20 @@ import java.util.*
 
 object FileUtils {
 
+    private val DOCUMENT_MIME_TYPES = arrayOf(
+        "application/pdf",
+        "application/msword",
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "application/vnd.ms-excel",
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        "application/vnd.ms-powerpoint",
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+        "text/plain",
+        "application/rtf",
+        "text/html",
+        "application/epub+zip"
+    )
+
     private val groupingRoots = listOf(
         Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM),
         Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES),
@@ -57,9 +71,26 @@ object FileUtils {
         scanDirectoryRecursive(storageRoot, categoryMap)
 
         // Some document locations (like Android/media) may be visible only via MediaStore APIs.
-        // Replace the scanned document bucket with MediaStore PDFs so we rely on the correct
-        // MIME type (application/pdf) while debugging missing document counts.
-        categoryMap[FileCategory.DOCUMENTS] = loadDocumentsFromMediaStore(context)
+        // Merge MediaStore documents with scanned ones so we keep any files already detected
+        // from direct storage traversal while also adding scoped-storage only entries.
+        val mediaStoreDocuments = loadDocumentsFromMediaStore(context)
+        if (mediaStoreDocuments.isNotEmpty()) {
+            val documentBuckets = categoryMap[FileCategory.DOCUMENTS]
+                ?: mutableMapOf<String, MutableList<FileItem>>().also {
+                    categoryMap[FileCategory.DOCUMENTS] = it
+                }
+
+            mediaStoreDocuments.forEach { (source, files) ->
+                val bucket = documentBuckets.getOrPut(source) { mutableListOf() }
+                val existingPaths = bucket.mapTo(mutableSetOf()) { it.path }
+                files.forEach { fileItem ->
+                    if (existingPaths.add(fileItem.path)) {
+                        bucket.add(fileItem)
+                    }
+                }
+                bucket.sortByDescending { it.dateModified }
+            }
+        }
 
         // Build result
         categoryMap.mapValues { (category, sourceMap) ->
@@ -149,8 +180,12 @@ object FileUtils {
             MediaStore.Files.FileColumns.SIZE,
             MediaStore.Files.FileColumns.DATE_MODIFIED
         )
-        val selection = "${MediaStore.Files.FileColumns.MIME_TYPE} = ?"
-        val selectionArgs = arrayOf("application/pdf")
+        val selection = DOCUMENT_MIME_TYPES.joinToString(
+            prefix = "(",
+            separator = " OR ",
+            postfix = ")"
+        ) { "${MediaStore.Files.FileColumns.MIME_TYPE} = ?" }
+        val selectionArgs = DOCUMENT_MIME_TYPES
 
         val cursor = try {
             resolver.query(

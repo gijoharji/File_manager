@@ -10,8 +10,6 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.*
-
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
@@ -45,97 +43,86 @@ import com.filemanager.app.data.StorageEntry
 import com.filemanager.app.utils.FileUtils
 import java.io.File
 import java.util.Locale
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.grid.*
+import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Folder
+import androidx.compose.material3.*
+import androidx.compose.ui.unit.dp
+
 
 @Composable
 private fun StorageEntryGridItem(
-    entry: StorageEntry,    onClick: (StorageEntry) -> Unit, // <<< ONLY ONE CLICK HANDLER
+    entry: StorageEntry,
+    onClick: (StorageEntry) -> Unit,
     modifier: Modifier = Modifier
-)
- {
-    // --- icon by type ---
-    // ... inside StorageEntryGridItem
+) {
     val (icon, tint) = if (entry.isDirectory) {
-        // If it's a directory, use the folder icon and primary color
         Icons.Default.Folder to MaterialTheme.colorScheme.primary
     } else {
-        // If it's a file, get the spec from our helper function
-        val ext = entry.name.substringAfterLast('.', "").lowercase(Locale.getDefault())
-        val spec = iconForExt(ext)
-
-        // CORRECTED: Assign the icon and tint from the returned IconSpec
+        val locale = Locale.getDefault()
+        val ext = entry.name.substringAfterLast('.', "").lowercase(locale)
+        val spec = iconForExt(ext)          // your helper that returns icon + tint
         spec.icon to spec.tint
     }
-
 
     Card(
         modifier = modifier
             .fillMaxWidth()
             .clickable { onClick(entry) },
-        shape = RoundedCornerShape(20.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        shape = RoundedCornerShape(20.dp),  // NEW rounded corner
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp), // flat, modern
         border = BorderStroke(
             width = 1.dp,
-            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f) // NEW subtle outline
         ),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
+            containerColor = MaterialTheme.colorScheme.surface // NEW surface color
         )
     ) {
-        val subtitle = if (entry.isDirectory) {
-            val count = if (entry.itemCount == 1) "1 item" else "${entry.itemCount} items"
-            count
-        } else {
-            FileUtils.formatFileSize(entry.size)
-        }
-
         Column(
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 18.dp),
+                .padding(10.dp),                 // ← keep OLD padding
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            verticalArrangement = Arrangement.Center
         ) {
-            Box(
-                modifier = Modifier
-                    .size(56.dp)
-                    .background(
-                        color = MaterialTheme.colorScheme.surfaceVariant,
-                        shape = RoundedCornerShape(18.dp)
-                    ),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = entry.name,
-                    tint = tint,
-                    modifier = Modifier.size(28.dp)
-                )
-            }
+            Icon(
+                imageVector = icon,
+                contentDescription = entry.name,
+                tint = tint,
+                modifier = Modifier.size(40.dp)  // 36–44dp to taste                // ← keep OLD icon size
+            )
 
-            Column(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(6.dp)
-            ) {
-                Text(
-                    text = entry.name,
-                    style = MaterialTheme.typography.titleSmall,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                    textAlign = TextAlign.Center
-                )
-                Text(
-                    text = subtitle,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    textAlign = TextAlign.Center
-                )
-            }
+            Text(
+                text = entry.name,
+                style = MaterialTheme.typography.titleSmall, // modern style, close to old size
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+                textAlign = TextAlign.Center
+            )
+
+            val subtitle =
+                if (entry.isDirectory) {
+                    val c = entry.itemCount
+                    if (c == 1) "1 item" else "$c items"
+                } else {
+                    FileUtils.formatFileSize(entry.size)
+                }
+
+            Text(
+                text = subtitle,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant, // NEW tint
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                textAlign = TextAlign.Center
+            )
         }
     }
 }
+
 
 private data class IconSpec(val icon: ImageVector, val tint: Color)
 
@@ -206,8 +193,8 @@ fun StorageBrowserScreen(
                 }
             },
             colors = TopAppBarDefaults.topAppBarColors(
-                containerColor = MaterialTheme.colorScheme.background,
-                titleContentColor = MaterialTheme.colorScheme.onBackground,
+                containerColor = MaterialTheme.colorScheme.background,      // NEW
+                titleContentColor = MaterialTheme.colorScheme.onBackground, // NEW
                 navigationIconContentColor = MaterialTheme.colorScheme.onBackground,
                 actionIconContentColor = MaterialTheme.colorScheme.onBackground
             )
@@ -215,12 +202,12 @@ fun StorageBrowserScreen(
 
         if (isLoading) {
             LinearProgressIndicator(
-                modifier = Modifier
-                    .fillMaxWidth(),
-                color = MaterialTheme.colorScheme.primary,
-                trackColor = MaterialTheme.colorScheme.surfaceVariant
+                modifier = Modifier.fillMaxWidth(),
+                color = MaterialTheme.colorScheme.primary,                 // NEW
+                trackColor = MaterialTheme.colorScheme.surfaceVariant      // NEW
             )
         }
+
 
         Box(modifier = Modifier.fillMaxSize()) {
             when {
@@ -228,7 +215,7 @@ fun StorageBrowserScreen(
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
-                            .padding(16.dp),
+                            .height(84.dp),
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
@@ -243,34 +230,30 @@ fun StorageBrowserScreen(
                     val context = LocalContext.current
 
                     LazyVerticalGrid(
-                        columns = GridCells.Adaptive(minSize = 160.dp),
+                        columns = GridCells.Adaptive(minSize = 120.dp), // ← old density
                         modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(16.dp),
-                        horizontalArrangement = Arrangement.spacedBy(16.dp)
+                        contentPadding = PaddingValues(8.dp),           // ← old padding
+                        verticalArrangement = Arrangement.spacedBy(8.dp),   // ← old spacing
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)  // ← old spacing
                     ) {
                         items(entries, key = { it.path }) { entry ->
                             StorageEntryGridItem(
                                 entry = entry,
-                                onClick = { clickedEntry ->
-                                    if (clickedEntry.isDirectory) {
-                                        onFolderClick(clickedEntry)
-                                    } else {
-                                        (context as? MainActivity)?.openFileWith(clickedEntry.path)
-                                    }
-                                }
+                                onClick = { clicked ->
+                                    if (clicked.isDirectory) onFolderClick(clicked)
+                                    else (context as? MainActivity)?.openFileWith(clicked.path)
+                                },
+                                modifier = Modifier
+                                    .fillMaxWidth() // keep old width behavior (no aspectRatio)
                             )
                         }
-
-
                     }
 
-
                 }
+
             }
         }
-
-
     }
 
 }
+

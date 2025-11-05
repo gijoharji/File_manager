@@ -369,13 +369,13 @@ fun CategoryDetailScreen(
             if (currentFolderData != null) {
                 val files = currentFolderData.files
                 LazyVerticalGrid(
-                    columns = GridCells.Adaptive(minSize = 160.dp),
+                    columns = GridCells.Fixed(3),
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(padding),
-                    contentPadding = PaddingValues(16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                    contentPadding = PaddingValues(8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement   = Arrangement.spacedBy(8.dp)
                 ) {
                     items(files) { fileItem ->
                         FileTile(
@@ -402,13 +402,13 @@ fun CategoryDetailScreen(
                 }
 
                 LazyVerticalGrid(
-                    columns = GridCells.Adaptive(minSize = 160.dp),
+                    columns = GridCells.Fixed(3),
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(padding),
-                    contentPadding = PaddingValues(16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                    contentPadding = PaddingValues(8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     items(sortedSources) { (path, sourceData) ->
                         FolderTile(
@@ -956,7 +956,7 @@ fun FolderTile(
                     text = sourceData.name,
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.Medium,
-                    maxLines = 1,
+                    maxLines = 2,
                     overflow = TextOverflow.Ellipsis
                 )
                 Text(

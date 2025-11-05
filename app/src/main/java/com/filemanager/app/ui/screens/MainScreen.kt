@@ -114,22 +114,6 @@ fun MainScreen(viewModel: FileManagerViewModel) {
                 )
             }
 
-            // Now you can safely use the local copy
-            quickFilterState != null -> {
-                QuickFilterScreen(
-                    state = quickFilterState, // No more smart cast error!
-                    onBack = { viewModel.clearQuickFilter() },
-                    modifier = Modifier.padding(padding)
-                )
-            }
-
-            quickFilterState != null -> {
-                QuickFilterScreen(
-                    state = quickFilterState,
-                    onBack = { viewModel.clearQuickFilter() },
-                    modifier = Modifier.padding(padding)
-                )
-            }
 
             selectedCategory != null -> {
                 CategoryDetailScreen(
@@ -182,7 +166,6 @@ fun MainScreen(viewModel: FileManagerViewModel) {
     }
 }
 
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun QuickFilterRow(
@@ -214,64 +197,17 @@ private fun QuickFilterRow(
                     )
                 },
                 shape = RoundedCornerShape(24.dp),
-                // Keep only broadly-supported color args to avoid version mismatch
                 colors = FilterChipDefaults.filterChipColors(
                     containerColor = MaterialTheme.colorScheme.surfaceVariant,
                     labelColor = MaterialTheme.colorScheme.onSurface,
                     selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
                     selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer
                 )
-                // Remove the custom BorderStroke; let defaults handle borders
-                // border = FilterChipDefaults.filterChipBorder() // (optional if you want explicit)
             )
         }
     }
 }
 
-
-@Composable
-private fun QuickFilterRow(
-    selectedFilter: QuickFilter?,
-    onFilterSelected: (QuickFilter) -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp)
-            .padding(top = 8.dp),
-        horizontalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        QuickFilter.values().forEach { filter ->
-            val isSelected = selectedFilter == filter
-            FilterChip(
-                selected = isSelected,
-                onClick = { onFilterSelected(filter) },
-                label = { Text(filter.displayName) },
-                leadingIcon = {
-                    Icon(
-                        imageVector = when (filter) {
-                            QuickFilter.RECENT -> Icons.Default.History
-                            QuickFilter.LARGE -> Icons.Default.UnfoldMore
-                            QuickFilter.DUPLICATES -> Icons.Default.ContentCopy
-                        },
-                        contentDescription = null
-                    )
-                },
-                shape = RoundedCornerShape(24.dp),
-                colors = FilterChipDefaults.filterChipColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                    labelColor = MaterialTheme.colorScheme.onSurface,
-                    leadingIconColor = MaterialTheme.colorScheme.onSurface,
-                    selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
-                    selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                    selectedLeadingIconColor = MaterialTheme.colorScheme.onPrimaryContainer
-                ),
-                border = if (isSelected) null else BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
-            )
-        }
-    }
-}
 
 @Composable
 fun CategoryListScreen(

@@ -42,6 +42,8 @@ import com.filemanager.app.data.FileItem
 import com.filemanager.app.data.QuickFilterState
 import com.filemanager.app.utils.FileUtils
 import java.text.DateFormat
+import androidx.compose.foundation.layout.size
+
 import java.util.Date
 
 @OptIn(ExperimentalMaterial3Api::class)

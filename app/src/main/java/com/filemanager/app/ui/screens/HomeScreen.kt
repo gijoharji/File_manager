@@ -1,11 +1,11 @@
 package com.filemanager.app.ui.screens
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -13,7 +13,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
@@ -24,7 +23,6 @@ import androidx.compose.ui.unit.sp
 import com.filemanager.app.data.FileCategory
 import com.filemanager.app.data.HomeItem
 import com.filemanager.app.utils.FileUtils
-import java.io.File
 
 @Composable
 fun HomeGridScreen(
@@ -139,11 +137,11 @@ fun HomeGridScreen(
     }
 
     LazyVerticalGrid(
-        columns = GridCells.Adaptive(minSize = 120.dp),
+        columns = GridCells.Fixed(2),
         modifier = modifier.fillMaxSize(),
-        contentPadding = PaddingValues(8.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+        contentPadding = PaddingValues(16.dp),
+        horizontalArrangement = Arrangement.spacedBy(16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         items(homeItems) { item ->
             HomeGridItem(
@@ -170,8 +168,9 @@ fun HomeGridItem(
             .fillMaxWidth()
             .heightIn(min = 132.dp)
             .clickable(onClick = onClick),
-        shape = RoundedCornerShape(16.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        shape = RoundedCornerShape(20.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface
         )
@@ -179,8 +178,8 @@ fun HomeGridItem(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 12.dp, vertical = 14.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
+                .padding(horizontal = 16.dp, vertical = 18.dp),
+            horizontalAlignment = Alignment.Start,
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             val iconSize = 36.dp
@@ -196,13 +195,13 @@ fun HomeGridItem(
 
             Column(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalAlignment = Alignment.CenterHorizontally,
+                horizontalAlignment = Alignment.Start,
                 verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 Text(
                     text = item.title,
                     style = titleStyle.copy(fontWeight = FontWeight.Bold),
-                    textAlign = TextAlign.Center,
+                    textAlign = TextAlign.Start,
                     maxLines = 1,
                     modifier = Modifier.fillMaxWidth(),
                     overflow = TextOverflow.Ellipsis,
@@ -215,7 +214,7 @@ fun HomeGridItem(
                         lineHeight = subtitleStyle.fontSize * 1.3f
                     ),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    textAlign = TextAlign.Center,
+                    textAlign = TextAlign.Start,
                     modifier = Modifier.fillMaxWidth(),
                     softWrap = true
                 )
@@ -228,29 +227,31 @@ fun HomeGridItem(
 
 @Composable
 fun getIconForItem(item: HomeItem): ImageVector {
-    return when (item.icon) {
-        "storage" -> Icons.Default.Storage
-        "downloads" -> Icons.Default.Download
-        "images" -> Icons.Default.Image
-        "audio" -> Icons.Default.MusicNote
-        "videos" -> Icons.Default.VideoLibrary
-        "documents" -> Icons.Default.Description
-        "apps" -> Icons.Default.Apps
-        else -> Icons.Default.Folder
+    return when (item) {
+        is HomeItem.StorageItem -> Icons.Default.Storage
+        is HomeItem.DownloadsItem -> Icons.Default.Download
+        is HomeItem.CategoryItem -> getIconForCategory(item.category)
     }
 }
 
 @Composable
 fun getIconColorForItem(item: HomeItem): Color {
-    return when (item.icon) {
-        "storage" -> Color(0xFF9E9E9E)
-        "downloads" -> Color(0xFF795548)
-        "images" -> Color(0xFF9C27B0)
-        "audio" -> Color(0xFF009688)
-        "videos" -> Color(0xFFF44336)
-        "documents" -> Color(0xFF2196F3)
-        "apps" -> Color(0xFF4CAF50)
-        else -> MaterialTheme.colorScheme.primary
+    return when (item) {
+        is HomeItem.StorageItem -> Color(0xFF9E9E9E)
+        is HomeItem.DownloadsItem -> Color(0xFF795548)
+        is HomeItem.CategoryItem -> categoryAccentColor(item.category)
+    }
+}
+
+@Composable
+fun categoryAccentColor(category: FileCategory): Color {
+    return when (category) {
+        FileCategory.IMAGES -> Color(0xFF9C27B0)
+        FileCategory.VIDEOS -> Color(0xFFF44336)
+        FileCategory.AUDIO -> Color(0xFF009688)
+        FileCategory.DOCUMENTS -> Color(0xFF2196F3)
+        FileCategory.APKS -> Color(0xFF4CAF50)
+        FileCategory.ARCHIVES -> Color(0xFF607D8B)
     }
 }
 

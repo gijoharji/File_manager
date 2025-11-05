@@ -42,10 +42,7 @@ fun MainScreen(viewModel: FileManagerViewModel) {
     val selectedCategory by viewModel.selectedCategory.collectAsStateWithLifecycle()
     val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
     val storageState by viewModel.storageBrowserState.collectAsStateWithLifecycle()
-
-    // Create a local, immutable copy of the state
-    val quickFilterState = viewModel.quickFilterState.collectAsStateWithLifecycle().value
-
+    val quickFilterState by viewModel.quickFilterState.collectAsStateWithLifecycle()
     val context = LocalContext.current
     var showExitDialog by remember { mutableStateOf(false) }
     var showMenu by remember { mutableStateOf(false) }
@@ -65,8 +62,8 @@ fun MainScreen(viewModel: FileManagerViewModel) {
     BackHandler(
         enabled =
             selectedCategory == null &&
-                    storageState.currentPath == null &&
-                    quickFilterState == null
+            storageState.currentPath == null &&
+            quickFilterState == null
     ) {
         showExitDialog = true
     }
@@ -126,6 +123,14 @@ fun MainScreen(viewModel: FileManagerViewModel) {
                 )
             }
 
+            quickFilterState != null -> {
+                QuickFilterScreen(
+                    state = quickFilterState,
+                    onBack = { viewModel.clearQuickFilter() },
+                    modifier = Modifier.padding(padding)
+                )
+            }
+
             selectedCategory != null -> {
                 CategoryDetailScreen(
                     category = selectedCategory!!,
@@ -141,7 +146,6 @@ fun MainScreen(viewModel: FileManagerViewModel) {
                         .padding(padding)
                 ) {
                     QuickFilterRow(
-                        // Use the local copy here as well for consistency
                         selectedFilter = quickFilterState?.filter,
                         onFilterSelected = { filter -> viewModel.selectQuickFilter(filter) }
                     )
@@ -151,7 +155,7 @@ fun MainScreen(viewModel: FileManagerViewModel) {
                     HomeGridScreen(
                         categories = categories,
                         onCategoryClick = { viewModel.selectCategory(it) },
-                        onStorageClick = { path -> viewModel.openStorage(path) },
+                        onStorageClick = { path -> viewModel.openStorage(path) },               // CHANGED
                         modifier = Modifier
                             .fillMaxWidth()
                             .weight(1f)
@@ -224,6 +228,50 @@ private fun QuickFilterRow(
     }
 }
 
+
+@Composable
+private fun QuickFilterRow(
+    selectedFilter: QuickFilter?,
+    onFilterSelected: (QuickFilter) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp)
+            .padding(top = 8.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        QuickFilter.values().forEach { filter ->
+            val isSelected = selectedFilter == filter
+            FilterChip(
+                selected = isSelected,
+                onClick = { onFilterSelected(filter) },
+                label = { Text(filter.displayName) },
+                leadingIcon = {
+                    Icon(
+                        imageVector = when (filter) {
+                            QuickFilter.RECENT -> Icons.Default.History
+                            QuickFilter.LARGE -> Icons.Default.UnfoldMore
+                            QuickFilter.DUPLICATES -> Icons.Default.ContentCopy
+                        },
+                        contentDescription = null
+                    )
+                },
+                shape = RoundedCornerShape(24.dp),
+                colors = FilterChipDefaults.filterChipColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                    labelColor = MaterialTheme.colorScheme.onSurface,
+                    leadingIconColor = MaterialTheme.colorScheme.onSurface,
+                    selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                    selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                    selectedLeadingIconColor = MaterialTheme.colorScheme.onPrimaryContainer
+                ),
+                border = if (isSelected) null else BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+            )
+        }
+    }
+}
 
 @Composable
 fun CategoryListScreen(

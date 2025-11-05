@@ -6,6 +6,9 @@ import androidx.lifecycle.viewModelScope
 import com.filemanager.app.data.CategoryData
 import com.filemanager.app.data.FileCategory
 import com.filemanager.app.data.FileItem
+import com.filemanager.app.data.QuickFilter
+import com.filemanager.app.data.QuickFilterGroup
+import com.filemanager.app.data.QuickFilterState
 import com.filemanager.app.utils.FileUtils
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -14,6 +17,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.util.Locale
 
 class FileManagerViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -23,9 +27,12 @@ class FileManagerViewModel(application: Application) : AndroidViewModel(applicat
 
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
-    
+
     private val _selectedCategory = MutableStateFlow<FileCategory?>(null)
     val selectedCategory: StateFlow<FileCategory?> = _selectedCategory.asStateFlow()
+
+    private val _quickFilterState = MutableStateFlow<QuickFilterState?>(null)
+    val quickFilterState: StateFlow<QuickFilterState?> = _quickFilterState.asStateFlow()
 
     private val _selectedFiles = MutableStateFlow<Set<String>>(emptySet())
     val selectedFiles: StateFlow<Set<String>> = _selectedFiles.asStateFlow()
@@ -47,6 +54,7 @@ class FileManagerViewModel(application: Application) : AndroidViewModel(applicat
             try {
                 val scanned = FileUtils.scanFiles(getApplication())
                 _categories.value = scanned
+                refreshQuickFilter()
             } catch (e: Exception) {
                 e.printStackTrace()
             } finally {
@@ -63,6 +71,16 @@ class FileManagerViewModel(application: Application) : AndroidViewModel(applicat
     fun clearCategorySelection() {
         _selectedCategory.value = null
         clearSelection()
+    }
+
+    fun selectQuickFilter(filter: QuickFilter) {
+        clearSelection()
+        _selectedCategory.value = null
+        _quickFilterState.value = buildQuickFilterState(filter)
+    }
+
+    fun clearQuickFilter() {
+        _quickFilterState.value = null
     }
 
     fun openStorageRoot(path: String) {
@@ -181,6 +199,48 @@ class FileManagerViewModel(application: Application) : AndroidViewModel(applicat
         _isSelectionMode.value = false
     }
 
+    private fun refreshQuickFilter() {
+        val current = _quickFilterState.value ?: return
+        _quickFilterState.value = buildQuickFilterState(current.filter)
+    }
+
+    private fun buildQuickFilterState(filter: QuickFilter): QuickFilterState {
+        val files = collectAllFiles()
+        val groups: List<QuickFilterGroup> = when (filter) {
+            QuickFilter.RECENT -> {
+                val sorted = files.sortedByDescending { it.dateModified }
+                listOf(QuickFilterGroup(title = null, files = sorted.take(QUICK_FILTER_LIMIT)))
+            }
+
+            QuickFilter.LARGE -> {
+                val sorted = files.sortedByDescending { it.size }
+                listOf(QuickFilterGroup(title = null, files = sorted.take(QUICK_FILTER_LIMIT)))
+            }
+
+            QuickFilter.DUPLICATES -> {
+                files
+                    .groupBy { it.name.lowercase(Locale.getDefault()) to it.size }
+                    .values
+                    .filter { it.size > 1 }
+                    .map { duplicates ->
+                        val header = duplicates.firstOrNull()?.name ?: ""
+                        QuickFilterGroup(
+                            title = "$header (${duplicates.size})",
+                            files = duplicates.sortedByDescending { it.dateModified }
+                        )
+                    }
+                    .sortedByDescending { group -> group.files.firstOrNull()?.size ?: 0L }
+            }
+        }
+        return QuickFilterState(filter = filter, groups = groups)
+    }
+
+    private fun collectAllFiles(): List<FileItem> {
+        return _categories.value.values.flatMap { data ->
+            data.sources.values.flatMap { it.files }
+        }
+    }
+
     fun deleteSelectedFiles(): Boolean {
         val selected = _selectedFiles.value
         val cats = _categories.value
@@ -230,5 +290,9 @@ class FileManagerViewModel(application: Application) : AndroidViewModel(applicat
             scanFiles()
         }
         return ok
+    }
+
+    companion object {
+        private const val QUICK_FILTER_LIMIT = 100
     }
 }

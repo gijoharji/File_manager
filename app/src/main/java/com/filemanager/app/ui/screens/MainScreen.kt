@@ -1,9 +1,16 @@
 package com.filemanager.app.ui.screens
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.UnfoldMore
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Menu
@@ -13,7 +20,6 @@ import androidx.compose.runtime.*
 import androidx.activity.compose.BackHandler
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -21,6 +27,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.filemanager.app.data.FileCategory
+import com.filemanager.app.data.QuickFilter
 import com.filemanager.app.ui.viewmodel.FileManagerViewModel
 import com.filemanager.app.utils.FileUtils
 
@@ -31,18 +38,27 @@ fun MainScreen(viewModel: FileManagerViewModel) {
     val selectedCategory by viewModel.selectedCategory.collectAsStateWithLifecycle()
     val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
     val storageState by viewModel.storageBrowserState.collectAsStateWithLifecycle()
+    val quickFilterState by viewModel.quickFilterState.collectAsStateWithLifecycle()
     val context = LocalContext.current
     var showExitDialog by remember { mutableStateOf(false) }
     var showMenu by remember { mutableStateOf(false) }
 
     // System back handling
+    BackHandler(enabled = quickFilterState != null) {
+        viewModel.clearQuickFilter()
+    }
     BackHandler(enabled = selectedCategory != null) {
         viewModel.clearCategorySelection()
     }
     BackHandler(enabled = storageState.currentPath != null) {
         viewModel.navigateStorageBack()
     }
-    BackHandler(enabled = selectedCategory == null && storageState.currentPath == null) {
+    BackHandler(
+        enabled =
+            selectedCategory == null &&
+            storageState.currentPath == null &&
+            quickFilterState == null
+    ) {
         showExitDialog = true
     }
 
@@ -56,10 +72,10 @@ fun MainScreen(viewModel: FileManagerViewModel) {
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color(0xFF424242),
-                    titleContentColor = Color.White,
-                    navigationIconContentColor = Color.White,
-                    actionIconContentColor = Color.White
+                    containerColor = MaterialTheme.colorScheme.background,
+                    titleContentColor = MaterialTheme.colorScheme.onBackground,
+                    navigationIconContentColor = MaterialTheme.colorScheme.onBackground,
+                    actionIconContentColor = MaterialTheme.colorScheme.onBackground
                 ),
                 actions = {
                     IconButton(onClick = { /* overflow menu */ }) {
@@ -92,6 +108,14 @@ fun MainScreen(viewModel: FileManagerViewModel) {
                 )
             }
 
+            quickFilterState != null -> {
+                QuickFilterScreen(
+                    state = quickFilterState,
+                    onBack = { viewModel.clearQuickFilter() },
+                    modifier = Modifier.padding(padding)
+                )
+            }
+
             selectedCategory != null -> {
                 CategoryDetailScreen(
                     category = selectedCategory!!,
@@ -101,12 +125,27 @@ fun MainScreen(viewModel: FileManagerViewModel) {
             }
 
             else -> {
-                HomeGridScreen(
-                    categories = categories,
-                    onCategoryClick = { viewModel.selectCategory(it) },
-                    onStorageClick = { path -> viewModel.openStorage(path) },               // CHANGED
-                    modifier = Modifier.padding(padding)
-                )
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(padding)
+                ) {
+                    QuickFilterRow(
+                        selectedFilter = quickFilterState?.filter,
+                        onFilterSelected = { filter -> viewModel.selectQuickFilter(filter) }
+                    )
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    HomeGridScreen(
+                        categories = categories,
+                        onCategoryClick = { viewModel.selectCategory(it) },
+                        onStorageClick = { path -> viewModel.openStorage(path) },               // CHANGED
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f)
+                    )
+                }
             }
         }
     }
@@ -125,6 +164,50 @@ fun MainScreen(viewModel: FileManagerViewModel) {
                 TextButton(onClick = { showExitDialog = false }) { Text("Cancel") }
             }
         )
+    }
+}
+
+@Composable
+private fun QuickFilterRow(
+    selectedFilter: QuickFilter?,
+    onFilterSelected: (QuickFilter) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp)
+            .padding(top = 8.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        QuickFilter.values().forEach { filter ->
+            val isSelected = selectedFilter == filter
+            FilterChip(
+                selected = isSelected,
+                onClick = { onFilterSelected(filter) },
+                label = { Text(filter.displayName) },
+                leadingIcon = {
+                    Icon(
+                        imageVector = when (filter) {
+                            QuickFilter.RECENT -> Icons.Default.History
+                            QuickFilter.LARGE -> Icons.Default.UnfoldMore
+                            QuickFilter.DUPLICATES -> Icons.Default.ContentCopy
+                        },
+                        contentDescription = null
+                    )
+                },
+                shape = RoundedCornerShape(24.dp),
+                colors = FilterChipDefaults.filterChipColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                    labelColor = MaterialTheme.colorScheme.onSurface,
+                    leadingIconColor = MaterialTheme.colorScheme.onSurface,
+                    selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                    selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                    selectedLeadingIconColor = MaterialTheme.colorScheme.onPrimaryContainer
+                ),
+                border = if (isSelected) null else BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+            )
+        }
     }
 }
 

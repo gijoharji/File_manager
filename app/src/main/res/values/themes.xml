@@ -1,6 +1,23 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Keep it minimal so it compiles -->
-    <style name="Theme.FileManager" parent="Theme.Material3.DayNight.NoActionBar"/>
+    <style name="Theme.FileManager" parent="Theme.Material3.Light.NoActionBar">
+        <item name="colorPrimary">@color/fm_primary</item>
+        <item name="colorOnPrimary">@color/fm_onPrimary</item>
+        <item name="colorPrimaryContainer">@color/fm_primaryContainer</item>
+        <item name="colorOnPrimaryContainer">@color/fm_onPrimaryContainer</item>
+
+        <item name="colorSecondary">@color/fm_secondary</item>
+        <item name="colorOnSecondary">@color/fm_onSecondary</item>
+        <item name="colorSecondaryContainer">@color/fm_secondaryContainer</item>
+        <item name="colorOnSecondaryContainer">@color/fm_onSecondaryContainer</item>
+
+        <item name="colorSurface">@color/fm_surface</item>
+        <item name="colorSurfaceVariant">@color/fm_surfaceVariant</item>
+        <item name="colorOnSurface">@color/fm_onSurface</item>
+        <item name="colorOnSurfaceVariant">@color/fm_onSurfaceVariant</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowLightStatusBar">true</item>
+    </style>
 </resources>
 

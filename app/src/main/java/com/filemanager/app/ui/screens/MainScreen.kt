@@ -30,10 +30,14 @@ import com.filemanager.app.data.FileCategory
 import com.filemanager.app.data.QuickFilter
 import com.filemanager.app.ui.viewmodel.FileManagerViewModel
 import com.filemanager.app.utils.FileUtils
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainScreen(viewModel: FileManagerViewModel) {
+    // Collect state from the ViewModel
     val categories by viewModel.categories.collectAsStateWithLifecycle()
     val selectedCategory by viewModel.selectedCategory.collectAsStateWithLifecycle()
     val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
@@ -42,6 +46,8 @@ fun MainScreen(viewModel: FileManagerViewModel) {
     val context = LocalContext.current
     var showExitDialog by remember { mutableStateOf(false) }
     var showMenu by remember { mutableStateOf(false) }
+
+    // --- FIX APPLIED IN THE BackHandler and Scaffold ---
 
     // System back handling
     BackHandler(enabled = quickFilterState != null) {
@@ -102,8 +108,17 @@ fun MainScreen(viewModel: FileManagerViewModel) {
                     entries = storageState.entries,
                     isLoading = storageState.isLoading,
                     onNavigateUp = { viewModel.navigateStorageBack() },
-                    onFolderClick = { entry -> viewModel.navigateIntoStorage(entry.path) }, // CHANGED
-                    onClose = { viewModel.closeStorageBrowser() },                          // CHANGED
+                    onFolderClick = { entry -> viewModel.navigateIntoStorage(entry.path) },
+                    onClose = { viewModel.closeStorageBrowser() },
+                    modifier = Modifier.padding(padding)
+                )
+            }
+
+            // Now you can safely use the local copy
+            quickFilterState != null -> {
+                QuickFilterScreen(
+                    state = quickFilterState, // No more smart cast error!
+                    onBack = { viewModel.clearQuickFilter() },
                     modifier = Modifier.padding(padding)
                 )
             }
@@ -166,6 +181,53 @@ fun MainScreen(viewModel: FileManagerViewModel) {
         )
     }
 }
+
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun QuickFilterRow(
+    selectedFilter: QuickFilter?,
+    onFilterSelected: (QuickFilter) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp)
+            .padding(top = 8.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        QuickFilter.values().forEach { filter ->
+            val isSelected = selectedFilter == filter
+            FilterChip(
+                selected = isSelected,
+                onClick = { onFilterSelected(filter) },
+                label = { Text(filter.displayName) },
+                leadingIcon = {
+                    Icon(
+                        imageVector = when (filter) {
+                            QuickFilter.RECENT -> Icons.Default.History
+                            QuickFilter.LARGE -> Icons.Default.UnfoldMore
+                            QuickFilter.DUPLICATES -> Icons.Default.ContentCopy
+                        },
+                        contentDescription = null
+                    )
+                },
+                shape = RoundedCornerShape(24.dp),
+                // Keep only broadly-supported color args to avoid version mismatch
+                colors = FilterChipDefaults.filterChipColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                    labelColor = MaterialTheme.colorScheme.onSurface,
+                    selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                    selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer
+                )
+                // Remove the custom BorderStroke; let defaults handle borders
+                // border = FilterChipDefaults.filterChipBorder() // (optional if you want explicit)
+            )
+        }
+    }
+}
+
 
 @Composable
 private fun QuickFilterRow(
@@ -233,7 +295,7 @@ fun CategoryListScreen(
         }
     }
 }
-
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CategoryCard(
     category: FileCategory,

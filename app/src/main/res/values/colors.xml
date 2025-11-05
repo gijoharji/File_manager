@@ -1,5 +1,17 @@
-<?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="ic_launcher_background">#6750A4</color>
-</resources>
+    <color name="fm_primary">#A5B4FC</color>
+    <color name="fm_onPrimary">#111827</color>
+    <color name="fm_primaryContainer">#2B2F55</color>
+    <color name="fm_onPrimaryContainer">#E0E7FF</color>
 
+    <color name="fm_secondary">#6EE7C6</color>
+    <color name="fm_onSecondary">#0B1020</color>
+    <color name="fm_secondaryContainer">#123E36</color>
+    <color name="fm_onSecondaryContainer">#CCF5E9</color>
+
+    <color name="fm_surface">#0B1020</color>
+    <color name="fm_surfaceVariant">#111827</color>
+    <color name="fm_onSurface">#E5E7EB</color>
+    <color name="fm_onSurfaceVariant">#9CA3AF</color>
+    <color name="fm_outline">#374151</color>
+</resources>

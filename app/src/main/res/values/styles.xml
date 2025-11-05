@@ -1,0 +1,29 @@
+<resources>
+
+    <!-- Reusable card style for grids -->
+    <style name="Fm.Card" parent="Widget.Material3.CardView.Elevated">
+        <item name="cardCornerRadius">12dp</item>
+        <item name="cardUseCompatPadding">true</item>
+        <item name="cardElevation">4dp</item>
+        <item name="android:foreground">?attr/selectableItemBackground</item>
+        <item name="android:minHeight">120dp</item>
+        <item name="android:padding">12dp</item>
+        <item name="cardBackgroundColor">?attr/colorSurfaceVariant</item>
+    </style>
+
+    <!-- Title and meta text -->
+    <style name="Fm.Title">
+        <item name="android:textSize">16sp</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:maxLines">1</item>
+        <item name="android:ellipsize">end</item>
+        <item name="android:textColor">?attr/colorOnSurface</item>
+    </style>
+
+    <style name="Fm.Meta">
+        <item name="android:textSize">12sp</item>
+        <item name="android:textColor">?attr/colorOnSurfaceVariant</item>
+    </style>
+    <style name="Fm"/>
+
+</resources>

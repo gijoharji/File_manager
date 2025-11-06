@@ -78,6 +78,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -369,7 +370,7 @@ fun CategoryDetailScreen(
             if (currentFolderData != null) {
                 val files = currentFolderData.files
                 LazyVerticalGrid(
-                    columns = GridCells.Fixed(3),
+                    columns = GridCells.Fixed(2),
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(padding),
@@ -402,7 +403,7 @@ fun CategoryDetailScreen(
                 }
 
                 LazyVerticalGrid(
-                    columns = GridCells.Fixed(3),
+                    columns = GridCells.Fixed(2),
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(padding),
@@ -918,22 +919,22 @@ fun FolderTile(
                 MaterialTheme.colorScheme.surface
         )
     ) {
-        Column(modifier = Modifier.fillMaxSize()) {
-
-            // --- HEADER AREA: ONLY a blue folder icon (no preview, no grey doc icon) ---
+        Column(
+            modifier = Modifier.fillMaxSize()
+        ) {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(1f)
                     .clip(RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp))
-                    .background(MaterialTheme.colorScheme.surfaceVariant),
+                    .background(Color(0xFFF1F2F4)),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = Icons.Default.Folder,
                     contentDescription = null,
-                    tint = Color(0xFF1976D2),            // blue folder
-                    modifier = Modifier.size(40.dp)
+                    tint = Color(0xFF1976D2),
+                    modifier = Modifier.size(44.dp)
                 )
 
                 if (isSelected) {
@@ -945,25 +946,21 @@ fun FolderTile(
                 }
             }
 
-            // --- TEXT AREA: Name, then (quantity), then size ---
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .weight(1f)
                     .padding(horizontal = 16.dp, vertical = 12.dp),
-                verticalArrangement = Arrangement.spacedBy(6.dp)
+                verticalArrangement = Arrangement.Center,
+                horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 Text(
-                    text = sourceData.name,
+                    text = "${sourceData.name} (${sourceData.itemCount})",
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.Medium,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Text(
-                    text = "(${sourceData.itemCount})",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    textAlign = TextAlign.Center
                 )
                 if (sourceData.totalSize > 0) {
                     Text(
@@ -971,7 +968,8 @@ fun FolderTile(
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
+                        overflow = TextOverflow.Ellipsis,
+                        textAlign = TextAlign.Center
                     )
                 }
             }

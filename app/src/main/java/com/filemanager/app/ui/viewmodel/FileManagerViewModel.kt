@@ -221,6 +221,7 @@ class FileManagerViewModel(application: Application) : AndroidViewModel(applicat
                 files
                     .groupBy { it.name.lowercase(Locale.getDefault()) to it.size }
                     .values
+                    .map { duplicates -> duplicates.distinctBy { it.path } }
                     .filter { it.size > 1 }
                     .map { duplicates ->
                         val header = duplicates.firstOrNull()?.name ?: ""

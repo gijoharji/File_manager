@@ -3,12 +3,12 @@
     <!-- Reusable card style for grids -->
     <style name="Fm.Card" parent="Widget.Material3.CardView.Elevated">
         <item name="cardCornerRadius">12dp</item>
-        <item name="cardUseCompatPadding">true</item>
-        <item name="cardElevation">4dp</item>
+        <item name="cardUseCompatPadding">false</item>
+        <item name="cardElevation">2dp</item>
         <item name="android:foreground">?attr/selectableItemBackground</item>
-        <item name="android:minHeight">120dp</item>
-        <item name="android:padding">12dp</item>
-        <item name="cardBackgroundColor">?attr/colorSurfaceVariant</item>
+        <item name="android:minHeight">@dimen/fm_folder_card_height</item>
+        <item name="android:padding">0dp</item>
+        <item name="cardBackgroundColor">@color/fm_cardSurface</item>
     </style>
 
     <!-- Title and meta text -->
@@ -23,6 +23,8 @@
     <style name="Fm.Meta">
         <item name="android:textSize">12sp</item>
         <item name="android:textColor">?attr/colorOnSurfaceVariant</item>
+        <item name="android:maxLines">1</item>
+        <item name="android:ellipsize">end</item>
     </style>
     <style name="Fm"/>
 

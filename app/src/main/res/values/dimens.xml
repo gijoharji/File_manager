@@ -1,3 +1,4 @@
 <resources>
     <dimen name="fm_folder_icon_size">44dp</dimen>
+    <dimen name="fm_folder_card_height">168dp</dimen>
 </resources>

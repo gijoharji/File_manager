@@ -11,6 +11,7 @@
 
     <color name="fm_surface">#0B1020</color>
     <color name="fm_surfaceVariant">#111827</color>
+    <color name="fm_cardSurface">#FFFFFF</color>
     <color name="fm_onSurface">#E5E7EB</color>
     <color name="fm_onSurfaceVariant">#9CA3AF</color>
     <color name="fm_outline">#374151</color>

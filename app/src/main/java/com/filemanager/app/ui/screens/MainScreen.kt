@@ -115,6 +115,14 @@ fun MainScreen(viewModel: FileManagerViewModel) {
             }
 
 
+            quickFilterState != null -> {
+                QuickFilterScreen(
+                    state = quickFilterState!!,
+                    onBack = { viewModel.clearQuickFilter() },
+                    modifier = Modifier.padding(padding)
+                )
+            }
+
             selectedCategory != null -> {
                 CategoryDetailScreen(
                     category = selectedCategory!!,

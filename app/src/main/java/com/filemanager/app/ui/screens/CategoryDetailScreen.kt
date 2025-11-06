@@ -370,7 +370,7 @@ fun CategoryDetailScreen(
             if (currentFolderData != null) {
                 val files = currentFolderData.files
                 LazyVerticalGrid(
-                    columns = GridCells.Fixed(2),
+                    columns = GridCells.Adaptive(minSize = 180.dp),
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(padding),
@@ -403,7 +403,7 @@ fun CategoryDetailScreen(
                 }
 
                 LazyVerticalGrid(
-                    columns = GridCells.Fixed(2),
+                    columns = GridCells.Adaptive(minSize = 180.dp),
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(padding),
